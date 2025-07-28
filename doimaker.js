@@ -22,18 +22,18 @@ function loadObject(key) {
 function downloadObject(obj,filename) {
   const content = JSON.stringify(obj,null,2);
   const file = new Blob([content], {type:'text/plain'});
-  url = URL.createObjectURL(blob);
+  url = URL.createObjectURL(file);
 
   const link = document.createElement("a");
   link.href = url;
-  link.download = filename+".json";
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function readFile(fileobj) {
+async function readJson(fileobj) {
   try {
     const content = await fileobj.text();
     return JSON.parse(content);
@@ -177,7 +177,8 @@ class ControlButton {
   }
   setAction(actionFunction) {
     if (actionFunction instanceof Function) {
-      this.html.addEventListener("click", () => actionFunction)
+      console.log("here");
+      this.html.addEventListener("click", actionFunction);
     }
   }
   trigger() { this.html.dispatchEvent(new Event('click')); }
@@ -190,9 +191,12 @@ class ColumnComponent {
   }
   add(newItem) {
     if (newItem instanceof Node) {
+      //console.log(newItem);
+      newItem.style.display = "block";
       this.html.appendChild(newItem);
     }
     else if (newItem.html) {
+      newItem.html.style.display = "block";
       this.html.appendChild(newItem.html);
     }
   }
@@ -230,10 +234,10 @@ class PagerComponent {
     const delButton = new ControlButton("-");
     const prevButton = new ControlButton("<");
     const nextButton = new ControlButton(">");
-    newButton.setAction(this.new);
-    delButton.setAction(this.del);
-    prevButton.setAction(this.prev);
-    nextButton.setAction(this.next);
+    newButton.setAction(() => this.new());
+    delButton.setAction(() => this.del());
+    prevButton.setAction(() => this.prev());
+    nextButton.setAction(() => this.next());
     this.controls.add(newButton.html);
     this.controls.add(delButton.html);
     this.controls.add(prevButton.html);
@@ -383,7 +387,7 @@ class DoiProp {
     if (!this.schema)
       throw new Error(`Property ${propName} does not exist.`)
     this.name = propName;
-    this.label = this.schema.label; // TODO: add to schema!!!
+    this.label = this.schema.description; 
     this.value = null;
     this.view = this.render();
   }
@@ -438,7 +442,7 @@ class DoiProp {
 
   render() {
     const container = new ColumnComponent();
-    container.add(new LabelElement(this.schema.label));
+    container.add(new LabelElement(this.label));
     let field;
     if (this.schema.oneOf) {
       field = new MenuInput();
@@ -485,7 +489,6 @@ class DoiEntity {
     for (const propName of Object.keys(this)) {
       if (this[propName] instanceof DoiProp) {
         container.add(this[propName].view);
-        console.log(this[propName].view);
       }
     }
     return container;
@@ -694,6 +697,10 @@ class Ato extends DoiEntity {
   get adquirentes() { return Array.from(this.#adquirentes); };
   get imoveis() { return Array.from(this.#imoveis) };
 
+  // TODO: implement render() which calls super.render(),
+  // then appends alienante, adquirente, imovel renders
+  // (Note: consider doing the same in those classes too)
+
   includeAlienante(alienanteObj) {
     if (alienanteObj instanceof Alienante 
       && alienanteObj.isValid()) {
@@ -774,14 +781,6 @@ class Ato extends DoiEntity {
     }
     return doiObj;
   }
-/*
-  doiList() {
-    const doi = { "declaracoes": [] };
-    for (const imovel of this.#imoveis) {
-      doi.declaracoes.push(this.generateDoi(imovel));
-    }
-    return JSON.stringify(doi);
-  }*/
 }
 
 // BEGIN SCHEMA
@@ -1630,16 +1629,16 @@ class RepsBox { // MVC-in-one
     controls.setAttribute("id",`${this.id}-controls`);
     controls.setAttribute("class","PagerControls");
     const prevButton = new ControlButton(`${this.id}-prev`,"←");
-    prevButton.registerAction("click",this.pager.previous);
+    prevButton.setAction(() => this.pager.previous());
     controls.appendChild(prevButton.html);
     const nextButton = new ControlButton(`${this.id}-next`,"→");
-    nextButton.registerAction("click",this.pager.next);
+    nextButton.setAction(() => this.pager.next);
     controls.appendChild(nextButton.html);
     const addButton = new ControlButton(`${this.id}-add`,"+");
-    addButton.registerAction("click",this.addRepPage);
+    addButton.setAction(() => this.addRepPage);
     controls.appendChild(addButton.html);
     const removeButton = new ControlButton(`${this.id}-remove`,"-");
-    removeButton.registerAction("click",this.pager.pop);
+    removeButton.setAction(() => this.pager.pop);
     controls.appendChild(removeButton.html);
     container.appendChild(this.pager.html);
     container.appendChild(controls);
@@ -1737,16 +1736,16 @@ class OperationBox { // Soon:
     controls.setAttribute("id",`${this.id}-controls`);
     controls.setAttribute("class","PagerControls");
     const prevButton = new ControlButton(`${this.id}-prev`,"←");
-    prevButton.registerAction("click",()=>this.pager.previous);
+    prevButton.setAction(() => this.pager.previous());
     controls.appendChild(prevButton.html);
     const nextButton = new ControlButton(`${this.id}-next`,"→");
-    nextButton.registerAction("click",()=>this.pager.next);
+    nextButton.setAction(() => this.pager.next());
     controls.appendChild(nextButton.html);
     const addButton = new ControlButton(`${this.id}-add`,"+");
-    addButton.registerAction("click",()=>this.addRepPage);
+    addButton.setAction(() => this.addRepPage());
     controls.appendChild(addButton.html);
     const removeButton = new ControlButton(`${this.id}-remove`,"-");
-    removeButton.registerAction("click",()=>this.pager.pop);
+    removeButton.setAction(() => this.pager.pop());
     controls.appendChild(removeButton.html);
     container.appendChild(this.pager.html);
     container.appendChild(controls);
@@ -1792,10 +1791,10 @@ class App {
     this.resumeButton = new ControlButton("Carregar");
     this.downloadButton = new ControlButton("Download");
     this.uploadButton = new ControlButton("Upload");
-    this.saveButton.setAction(this.save);
-    this.resumeButton.setAction(this.resume);
-    this.downloadButton.setAction(this.download);
-    this.uploadButton.setAction(this.upload);
+    this.saveButton.setAction(() => this.save());
+    this.resumeButton.setAction(() => this.resume());
+    this.downloadButton.setAction(() => this.download());
+    this.uploadButton.setAction(() => this.upload());
 //    this.idlist = [];
     const act = new Ato();
     this.acts = [act];
@@ -1807,12 +1806,87 @@ class App {
 
   new() {
     const act = new Ato();
-    this.push(act);
+    this.acts.push(act);
     this.pager.new();
   }
 
+  add(act) {
+    this.acts.push(act);
+    this.pager.add(act.view.html);
+  }
+
+  load(doiList) { 
+    const actIdList = [];
+    const actList = [];
+    for (const doi of doiList) {
+      const actId = `${doi.numeroLivro}-${doi.folha}`;
+      if (actIdList.has(actId))
+        ato = actList[actIdList.indexOf(actId)];
+      else {
+        ato = new Ato();
+        actList.push(ato);
+        actIdList.push(actId);
+      }
+      const imovel = new Imovel();
+      ato.addImovel(imovel);
+      for (const propName in Object.keys(doi)) {
+        if (propName === 'alienantes') {
+          // TODO: add subject to ato and operation to imovel... 
+        }
+        else if (propName === 'adquirentes') {
+          // TODO: add subject to ato and operation to imovel... 
+        }
+        else if (imovel.schema.hasOwnProperty(propName)) {
+          imovel.setProp(propName, doi[propName]);
+        }
+        else if (ato.schema.hasOwnProperty(propName)) {
+          ato.setProp(propName, doi[propName]);
+        }
+        else throw new Error("Unknown property.");
+      }
+
+    }
+    for (const prop in doiObject) {
+      if (this[prop] instanceof DoiProp) {
+        doiObj[prop] = this[prop].value;
+      }
+    }
+    for (const prop in imovel) {
+      if (this[prop] instanceof DoiProp) {
+        doiObj[prop] = imovel[prop].value;
+      }
+    }
+    doiObj.alienantes=[];
+    for (const ni in imovel.alienacao) {
+      const alienante = { "participacao": imovel.alienacao[ni] };
+      const person = this.getAlienanteByNi(ni);
+      for (const prop in person) {
+        if (prop instanceof DoiProp)
+          alienante[prop.name] = person[prop].value;
+      }
+      doiObj.alienantes.push(alienante);
+    }
+    doiObj.adquirentes=[];
+    for (const ni in imovel.aquisicao) {
+      const adquirente = { "participacao": imovel.aquisicao[ni] };
+      const person = this.getAdquirenteByNi(ni);
+      for (const prop in person) {
+        if (prop instanceof DoiProp)
+          adquirente[prop] = person[prop].value;
+      }
+      doiObj.adquirentes.push(adquirente);
+    }
+    return doiObj;
+  }
+
   render() {
-    return this.pager.html;
+    const container = new ColumnComponent;
+    container.add(this.pager);
+    container.add(this.saveButton);
+    container.add(this.resumeButton);
+    container.add(this.downloadButton);
+    container.add(this.uploadButton);
+    return container.html;
   }
 
   get object() {
@@ -1822,12 +1896,13 @@ class App {
         doiObj.declaracoes.push(act.generateDoi(imovel));
       }
     }
+    return doiObj;
   }
 
   save() { saveObject(this.object,"draftDoi"); }
   resume() { loadObject("draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
-  upload() { this.object = loadObject("draftDoi"); }
+  upload() { this.load(readJson("doi.json").declaracoes); }
 
   init() {
     document.getElementById("app").appendChild(this.view);
