@@ -58,6 +58,19 @@ class TextElement {
   }
 }
 
+class HeaderElement {
+  constructor(text) {
+    this.html = document.createElement("h2");
+    this.html.setAttribute("class", "TextElement");
+    this.setText(text);
+  }
+  setText(newText) {
+    if (typeof newText === "string")
+      this.html.textContent = newText;
+    else throw Error("Invalid text.");
+  }
+}
+
 class LabelElement {
   constructor(text) {
     this.html = document.createElement("label");
@@ -77,6 +90,15 @@ class TextInput {
     this.html.setAttribute("type", "text");
     this.html.setAttribute("class", "TextInput");
     this.html.value = defaultText || "";
+    this.sizer = document.createElement("span");
+    this.sizer.setAttribute("class", "TextInputSizer");
+    this.sizer.setAttribute("contenteditable", "true");
+    document.body.appendChild(this.sizer);
+    this.html.addEventListener("input", () => {
+      this.sizer.textContent = this.html.value;
+      console.log(this.sizer.offsetWidth + ': ' + this.sizer.textContent);
+      this.html.style.width = this.sizer.offsetWidth + 'px';
+    });
   }
   get value() {
     return this.html.value;
@@ -177,7 +199,6 @@ class ControlButton {
   }
   setAction(actionFunction) {
     if (actionFunction instanceof Function) {
-      console.log("here");
       this.html.addEventListener("click", actionFunction);
     }
   }
@@ -191,7 +212,6 @@ class ColumnComponent {
   }
   add(newItem) {
     if (newItem instanceof Node) {
-      //console.log(newItem);
       newItem.style.display = "block";
       this.html.appendChild(newItem);
     }
@@ -260,17 +280,17 @@ class PagerComponent {
     else throw new Error("Invalid new page.");
   }
   remove(index) {
+    if (this.pages.length < 2) return;
     if (this.pages[index]) {
       this.pages.splice(index,1);
-      if (this.current == index) {
+      if (this.current == index) 
         this.select((this.current ? this.current : 1) -1);
-      }
       const newPageArea = document.createElement("div");
       newPageArea.setAttribute("class", "PagerComponent");
-      for (const page of pages) newPageArea.appendChild(page);
+      for (const page of this.pages) newPageArea.appendChild(page);
       delete this.pageArea;
       this.pageArea = newPageArea;
-      select(this.current);
+      this.select(this.current);
       this.html.prepend(this.pageArea);
     }
     else throw new Error("Invalid page index.");
@@ -281,14 +301,11 @@ class PagerComponent {
     if (index < 0 || index >= this.pages.length)
       throw new Error("Invalid page index.");
     for (const p in this.pages) {
-      //console.log(p);
-      //console.log(index);
       if (p != index) {
         this.pages[p].style.display = 'none';
       }
       else {
         this.pages[p].style.display = 'block';
-        //console.log(this.pages[p]);
       }
     }
     this.current = index;
@@ -477,7 +494,6 @@ class DoiEntity {
     this.schemaName = schemaName;
     this.requiredList = requiredList;
     for (const propName of Object.keys(doiDefs[this.schemaName])) {
- //     console.log(propName);
       this.forceProp(propName,null);
     }
     this.view = this.render();
@@ -485,7 +501,7 @@ class DoiEntity {
 
   render() {
     const container = new ColumnComponent();
-    container.add(new TextElement(this.schemaName))
+    container.add(new HeaderElement(this.schemaName))
     for (const propName of Object.keys(this)) {
       if (this[propName] instanceof DoiProp) {
         container.add(this[propName].view);
@@ -498,7 +514,6 @@ class DoiEntity {
     this[propName] = new DoiProp(
       this.schemaName, propName);
     this[propName].forceValue(propValue);
-//    console.log(this[propName]);
   }
 
   setProp(propName, propValue) {
@@ -987,7 +1002,7 @@ const doiJson = `{
     },
     "matriculaNotarialEletronica": {
       "type": "string",
-      "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD - A MNE deve ser validada através do DV informado, seguindo o algoritmo módulo 97 base 10, conforme norma ISO 7064:2023",
+      "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD.",
       "maxLength": 24
     },
     "naturezaTitulo": {
@@ -1880,12 +1895,14 @@ class App {
   }
 
   render() {
-    const container = new ColumnComponent;
+    const container = new ColumnComponent();
     container.add(this.pager);
-    container.add(this.saveButton);
-    container.add(this.resumeButton);
-    container.add(this.downloadButton);
-    container.add(this.uploadButton);
+    const controlRow = new RowComponent();
+    controlRow.add(this.saveButton);
+    controlRow.add(this.resumeButton);
+    controlRow.add(this.downloadButton);
+    controlRow.add(this.uploadButton);
+    container.add(controlRow);
     return container.html;
   }
 
