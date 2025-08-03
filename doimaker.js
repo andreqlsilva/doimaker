@@ -1,4 +1,4 @@
-/* DATA FUNCTIONS */
+// LOCAL STORAGE LIBRARY 
 
 function saveObject(obj,key) {
   try {
@@ -43,7 +43,7 @@ async function readJson(fileobj) {
   }
 }
 
-/* UI COMPONENTS */
+// FRONTEND LIBRARY 
 
 class TextElement {
   constructor(text) {
@@ -95,7 +95,7 @@ class TextInput {
     this.sizer.setAttribute("contenteditable", "true");
     document.body.appendChild(this.sizer);
     this.html.addEventListener("input", () => {
-      this.sizer.textContent = this.html.value;
+      this.sizer.textContent = this.html.value+" ";
       console.log(this.sizer.offsetWidth + ': ' + this.sizer.textContent);
       this.html.style.width = this.sizer.offsetWidth + 'px';
     });
@@ -135,7 +135,6 @@ class CheckboxInput {
     return this.html.checked;
   }
 }
-
 
 class DateInput {
   constructor() {
@@ -222,17 +221,88 @@ class ColumnComponent {
   }
 }
 
-class RowComponent {
+class RowComponent { // remove?
   constructor() {
     this.html = document.createElement("span");
     this.html.setAttribute("class", "RowComponent");
+    this.items = [];
   }
   add(newItem) {
     if (newItem instanceof Node) {
       this.html.appendChild(newItem);
+      this.items.push(newItem);
     }
     else if (newItem.html) {
       this.html.appendChild(newItem.html);
+      this.items.push(newItem.html);
+    }
+  }
+  get value() {
+    return Array.from(this.items.map(item => item.value));
+  }
+}
+
+class ListComponent { // needs complete fixing!
+  constructor(title) {
+    this.html = document.createElement("div");
+    this.html.setAttribute("class", "ListComponent");
+
+    const headerLine = document.createElement("span");
+    const header = document.createElement("h3");
+    header.setAttribute("class", "ListHeader");
+    header.textContent = title ?? "ListComponent";
+    const addButton = new ControlButton("+");
+    addButton.setAction(() => this.new());
+    headerLine.appendChild(header);
+    headerLine.appendChild(addButton.html);
+    this.html.appendChild(headerLine);
+
+    const itemBox = document.createElement("div");
+    itemBox.setAttribute("class", "ItemBox");
+    this.box = itemBox;
+    this.html.appendChild(itemBox);
+
+    this.items = [];
+    this.default = null;
+  }
+
+  setDefault(defaultLine) {
+    if (defaultLine instanceof Node) this.default = defaultLine;
+    else throw new Error("Invalid default line.");
+  }
+
+  valueOf(index) {
+    if (this.items.length > index) {
+      return this.items[index].value;
+    }
+  }
+
+  add(newItem) {
+    let htmlItem = newItem;
+    if (newItem.html) htmlItem = newItem.html;
+    if (htmlItem instanceof Node) {
+      this.items.push(htmlItem);
+      const position = this.items.length - 1;
+      const newLine = document.createElement("span");
+      newLine.setAttribute("class", "ItemLine");
+      newLine.appendChild(htmlItem);
+      const delButton = new ControlButton("-");
+      delButton.setAction(() =>
+        this.remove(position));
+      newLine.appendChild(delButton.html);
+      this.box.appendChild(newLine);
+//      this.nodes.push(newLine);
+    }
+    else throw new Error("Invalid new line.");
+  }
+
+  new() { this.add(this.default); }
+
+  remove(index) {
+    if (this.nodes.length > index) {
+      this.box.removeChild(this.nodes[index]);
+      this.nodes.splice(index,1);
+      this.items.splice(index,1);
     }
   }
 }
@@ -241,7 +311,7 @@ class PagerComponent {
   constructor() {
     this.current = 0;
     this.pages = [];
-    this.default = null
+    this.default = null;
 
     this.html = document.createElement("div");
     this.html.setAttribute("class", "PagerComponent");
@@ -272,8 +342,8 @@ class PagerComponent {
     let htmlPage = newPage;
     if (newPage.html) htmlPage = newPage.html;
     if (htmlPage instanceof Node) {
-      this.pages.push(newPage);
-      this.pageArea.appendChild(newPage);
+      this.pages.push(htmlPage);
+      this.pageArea.appendChild(htmlPage);
       this.current = this.pages.length-1;
       this.select(this.current);
     }
@@ -281,17 +351,19 @@ class PagerComponent {
   }
   remove(index) {
     if (this.pages.length < 2) return;
-    if (this.pages[index]) {
+    if (this.pages.length > index) {
+      const deleted = this.pages[index];
       this.pages.splice(index,1);
       if (this.current == index) 
         this.select((this.current ? this.current : 1) -1);
-      const newPageArea = document.createElement("div");
+      this.pageArea.removeChild(deleted);
+/*      const newPageArea = document.createElement("div");
       newPageArea.setAttribute("class", "PagerComponent");
       for (const page of this.pages) newPageArea.appendChild(page);
       delete this.pageArea;
       this.pageArea = newPageArea;
       this.select(this.current);
-      this.html.prepend(this.pageArea);
+      this.html.prepend(this.pageArea);*/
     }
     else throw new Error("Invalid page index.");
   }
@@ -324,7 +396,7 @@ class PagerComponent {
   }
 }
 
-/* MODELS AND VIEWS */
+// MODELS AND VIEWS 
 class CPF {
   static validate(ni) {
     if (typeof ni !== "string") return false;
@@ -554,6 +626,7 @@ class Subject extends DoiEntity {
       "indicadorNiIdentificado"
     ]);
     this.#representantes=new Set();
+    this.view = this.render();
   }
 
   get representantes() {
@@ -570,6 +643,18 @@ class Subject extends DoiEntity {
 
   removeRepresentante(ni) {
     this.representantes.delete(ni);
+  }
+
+  render() {
+    const container = super.render();
+    const repList = new ListComponent('Representantes');
+    const defaultRepLine = new RowComponent();
+    defaultRepLine.add(new LabelElement("CPF ou CNPJ: "));
+    defaultRepLine.add(new TextInput());
+    repList.setDefault(defaultRepLine.html);
+    this.repsview = repList;
+    container.add(repList);
+    return container;
   }
 
   isConsistent() {
@@ -673,6 +758,39 @@ class Imovel extends DoiEntity {
 
   removeAdquirente(ni) { this.#aquisicao.removePerson(ni); }
 
+  render() {
+    const container = super.render();
+    const alienList = new ListComponent('Alienação');
+    const defaultAlienLine = new RowComponent();
+    defaultAlienLine.add(new LabelElement("CPF ou CNPJ: "));
+    defaultAlienLine.add(new TextInput());
+    defaultAlienLine.add(new LabelElement("Participação: "));
+    defaultAlienLine.add(new NumberInput());
+    alienList.setDefault(defaultAlienLine.html);
+    this.aliensview = alienList;
+    container.add(alienList);
+
+    const adqList = new ListComponent('Aquisição');
+    const defaultAdqLine = new RowComponent();
+    defaultAdqLine.add(new LabelElement("CPF ou CNPJ: "));
+    defaultAdqLine.add(new TextInput());
+    defaultAdqLine.add(new LabelElement("Participação: "));
+    defaultAdqLine.add(new NumberInput());
+    adqList.setDefault(defaultAdqLine.html);
+    this.adqsview = adqList;
+    container.add(adqList);
+
+    const munList = new ListComponent('Outros municípios');
+    const defMunLine = new RowComponent();
+    defMunLine.add(new LabelElement("Município: "));
+    defMunLine.add(new TextInput());
+    munList.setDefault(defMunLine.html);
+    this.munsview = munList;
+    container.add(munList);
+
+    return container;
+  }
+
   addMunicipio(codigoIbge) {
     if (typeof codigoIbge === "string"
       && /^\d{7}$/.test(codigoIbge))
@@ -712,6 +830,22 @@ class Ato extends DoiEntity {
   get adquirentes() { return Array.from(this.#adquirentes); };
   get imoveis() { return Array.from(this.#imoveis) };
 
+  render() {
+    const container = super.render();
+    const alienBox = new ListComponent('Alienantes');
+    const alienDef = (new Alienante()).view;
+    alienBox.setDefault(alienDef.html);
+    const adqBox = new ListComponent('Adquirentes');
+    const adqDef = (new Adquirente()).view;
+    adqBox.setDefault(adqDef.html);
+    const imovBox = new ListComponent('Imoveis');
+    const imovDef = (new Imovel()).view;
+    imovBox.setDefault(imovDef.html);
+    container.add(alienBox);
+    container.add(adqBox);
+    container.add(imovBox);
+    return container;
+  }
   // TODO: implement render() which calls super.render(),
   // then appends alienante, adquirente, imovel renders
   // (Note: consider doing the same in those classes too)
@@ -1552,253 +1686,12 @@ const doiJson = `{
   }
 }`;
 // END SCHEMA
+
+// GLOBAL AND ENVIRONMENT VARIABLES
+
 const doiDefs=JSON.parse(doiJson);
 
-class PropField { // with empty defaults
-  constructor(id, doiProp) {
-    if (!id) throw new Error("id required.");
-    this.id = id;
-    if (!(doiProp instanceof DoiProp))
-      throw new Error("Fields must correspond to DOI props.");
-    this.model = doiProp;
-    this.validator = new ValidationMarker(`${id}-validator`);
-    const schema = doiProp.schema;
-    if (schema.oneOf) { // InputMenu
-      this.options = {};
-      for (const option of schema.oneOf)
-        this.options[option.const] = option.value;
-      this.view = new InputMenu(this.id, this.options);
-      this.view.html.addEventListener("change", () => this.update());
-    }
-    else if (doiProp.schema.type === "boolean") { // CheckField
-      this.view = new CheckboxInput(this.id);
-      this.validator.html.style.display = "none"; // no ValidationMarker
-    }
-    else {
-      if (schema.type === "string") {
-        if (schema.format === "date") { // DateField
-          this.view = new DateInput(this.id)
-        }
-        else this.view = new TextInput(this.id);
-      }
-      else if (doiProp.schema.type === "number") { // NumberField
-        this.view = new NumberInput(this.id);
-      }
-      this.view.html.addEventListener("input", () => this.update());
-    }
-  }
-  update() { 
-    this.model.setValue(this.view.value);
-    if (this.model.value) this.validator.accept();
-    else this.validator.reject();
-    return (this.model.value == null);
-  }
-  get container() {
-    const container = document.createElement("div");
-    const containerId = `${this.id}-label`;
-    container.setAttribute("id", containerId);
-    container.setAttribute("class", "PropField");
-    const title = new Label(`${this.id}-label`, this.model.label);
-    title.addToSection(containerId);
-    this.view.addToSection(containerId);
-    this.validator.addToSection(containerId);
-    return container;
-  }
-//  register() { document.body.appendChild(this.container); }
-  show() { this.view.show(); this.validator.show(); }
-  hide() { this.view.hide(); this.validator.hide(); }
-  toggle() { this.view.toggle(); this.validator.toggle(); }
-}
-
-class RepsBox { // MVC-in-one
-  constructor(id) {
-    if (!id) throw new Error("id required.");
-    this.id = id;
-    this.pager = new Pager(`${id}-pager`,[]);
-    this.addRepPage();
-  }
-
-  addRepPage() {
-    const newRepPage = document.createElement("div");
-    newRepPage.setAttribute("class","RepPage");
-    const label = new Label(`${this.id}-ni-label`,"CPF ou CNPJ");
-    const input = new TextInput(`${this.id}-ni-input`,"");
-    newRepPage.appendChild(label.html);
-    newRepPage.appendChild(input.html);
-    this.pager.add(newRepPage);
-  }
-
-  get reps() {
-    const niList = [];
-    for (const page of this.pager.pages) {
-      const input = page.getElementsByTagName("input")[0];
-      if (input.value && input.value.length > 0)
-        niList.push(input.value);
-    }
-    return niList;
-  }
-
-  get container() {
-    const container = document.createElement("div");
-    const controls = document.createElement("span");
-    controls.setAttribute("id",`${this.id}-controls`);
-    controls.setAttribute("class","PagerControls");
-    const prevButton = new ControlButton(`${this.id}-prev`,"←");
-    prevButton.setAction(() => this.pager.previous());
-    controls.appendChild(prevButton.html);
-    const nextButton = new ControlButton(`${this.id}-next`,"→");
-    nextButton.setAction(() => this.pager.next);
-    controls.appendChild(nextButton.html);
-    const addButton = new ControlButton(`${this.id}-add`,"+");
-    addButton.setAction(() => this.addRepPage);
-    controls.appendChild(addButton.html);
-    const removeButton = new ControlButton(`${this.id}-remove`,"-");
-    removeButton.setAction(() => this.pager.pop);
-    controls.appendChild(removeButton.html);
-    container.appendChild(this.pager.html);
-    container.appendChild(controls);
-    return container;
-  }
-}
-
-class SubjectBox { 
-  constructor(id, position) {
-    if (!id)
-      throw new Error("id required.");
-    this.id = id;
-    if (position === "Alienante")
-      this.model = Alienante.model();
-    else if (position === "Adquirente")
-      this.model = Adquirente.model();
-    else throw new Error("Invalid position.");
-    this.position = position;
-    const container = document.createElement("div");
-    container.setAttribute("class","SubjectBox");
-    this.view = [];
-    for (const prop of Object.entries(this.model)) {
-      if (prop instanceof DoiProp)
-        this.view.push(new PropField(`${id}-${prop.name}`,prop));
-    }
-    this.reps = new RepsBox(`${id}-reps`);
-  }
-
-  get container() {
-    const container = document.createElement("div");
-    const containerId = `${this.id}-box`;
-    container.setAttribute("id", containerId);
-    container.setAttribute("class", "SubjectBox");
-    const title =
-      new TextComponent(`${this.id}-title`, this.position);
-    title.addToSection(containerId);
-    this.view.forEach((propField) => {
-      container.appendChild(propField.container);
-    });
-    container.appendChild(this.reps.container);
-    return container;
-  }
-}
-
-
-class OperationBox { // Soon: 
-  constructor(id, label) {
-    if (!id) throw new Error("id required.");
-    this.id = id;
-    this.serial=0;
-    this.label = label // Alienante or Adquirente
-    this.pager = new Pager(`${id}-pager`,[]);
-    this.subjects = [];
-    this.addOpPage();
-  }
-
-  update(subjectList) { this.subjects = subjectList; }
-
-  addOpPage() {
-    const newOpPage = document.createElement("div");
-    newOpPage.setAttribute("class","OpPage");
-    const nilabel = new Label(
-      `${this.id}-ni-label-${this.serial}`, this.label);
-    const ni = new InputMenu(
-      `${this.id}-subject-${this.serial}`, this.subjects);
-    ni.html.setAttribute("class", "operation-subject");
-    const partlabel = new Label(
-      `${this.id}-part-label-${this.serial}`,"Participação");
-    const part = new NumberInput(
-      `${this.id}-part-${this.serial}`);
-    this.serial+=1;
-    part.html.setAttribute("class", "operation-part");
-    newOpPage.appendChild(nilabel.html);
-    newOpPage.appendChild(ni.html);
-    newOpPage.appendChild(partlabel.html);
-    newOpPage.appendChild(part.html);
-    this.pager.add(newOpPage);
-  }
-
-  get operation() {
-    const participations = {};
-    for (const page of this.pager.pages) {
-      const subject =
-        page.getElementsByClassName(`operation-subject`)[0].value;
-      const participation =
-        page.getElementsByClassName(`operation-part`)[0].value;
-      participations[subject] = participation;
-    }
-    return participations;
-  }
-
-  get container() {
-    const container = document.createElement("div");
-    const controls = document.createElement("span");
-    controls.setAttribute("id",`${this.id}-controls`);
-    controls.setAttribute("class","PagerControls");
-    const prevButton = new ControlButton(`${this.id}-prev`,"←");
-    prevButton.setAction(() => this.pager.previous());
-    controls.appendChild(prevButton.html);
-    const nextButton = new ControlButton(`${this.id}-next`,"→");
-    nextButton.setAction(() => this.pager.next());
-    controls.appendChild(nextButton.html);
-    const addButton = new ControlButton(`${this.id}-add`,"+");
-    addButton.setAction(() => this.addRepPage());
-    controls.appendChild(addButton.html);
-    const removeButton = new ControlButton(`${this.id}-remove`,"-");
-    removeButton.setAction(() => this.pager.pop());
-    controls.appendChild(removeButton.html);
-    container.appendChild(this.pager.html);
-    container.appendChild(controls);
-    return container;
-  }
-}
-
-class RealtyBox {
-  constructor(id) {
-    if (!id)
-      throw new Error("id required.");
-    this.model = Imovel.model();
-    const container = document.createElement("div");
-    container.setAttribute("class","RealtyBox");
-    this.view = [];
-    for (const prop of Object.entries(this.model)) {
-      if (prop instanceof DoiProp)
-        this.view.push(new PropField(`${id}-${prop.name}`,prop));
-    }
-    this.alienacao = new OperationBox(
-      `${this.id}-alienacao`,"Alienante");
-    this.aquisicao = new OperationBox(
-      `${this.id}-aquisicao`,"Adquirente");
-  }
-
-  get container() {
-    const container = document.createElement("div");
-    const containerId = `${this.id}-box`;
-    container.setAttribute("id", containerId);
-    container.setAttribute("class", "RealtyBox");
-    this.view.forEach((propField) => {
-      container.appendChild(propField.container);
-    });
-    container.appendChild(this.alienacao.container);
-    container.appendChild(this.aquisicao.container);
-    return container;
-  }
-}
+// CONTROLLER
 
 class App {
   constructor() {
@@ -1830,7 +1723,7 @@ class App {
     this.pager.add(act.view.html);
   }
 
-  load(doiList) { 
+  load(doiList) {
     const actIdList = [];
     const actList = [];
     for (const doi of doiList) {
@@ -1925,6 +1818,8 @@ class App {
     document.getElementById("app").appendChild(this.view);
   }
 }
+
+// ENTRYPOINT
 
 const doimaker = new App();
 doimaker.init();
