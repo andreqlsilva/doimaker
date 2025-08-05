@@ -45,46 +45,116 @@ async function readJson(fileobj) {
 
 // FRONTEND LIBRARY 
 
-class TextElement {
-  constructor(text) {
-    this.html = document.createElement("p");
-    this.html.setAttribute("class", "TextElement");
+class UIComponent { // extend only
+  constructor() { this.ui = true; }
+}
+
+class TextualElement extends UIComponent { // extend only
+  #allowedTags = [
+    'p', 'label', 'span',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+  ];
+  constructor(tag, text) {
+    super();
+    if (DisplayElement.#allowedTags.has(tag))
+      this.html = document.createElement(tag);
+    else throw new Error("Invalid tag.");
     this.setText(text);
   }
   setText(newText) {
     if (typeof newText === "string")
       this.html.textContent = newText;
-    else throw Error("Invalid text.");
+    else throw new Error("Invalid text.");
   }
 }
 
-class HeaderElement {
+class TextElement extends TextualElement {
   constructor(text) {
-    this.html = document.createElement("h2");
+    super('p',text);
     this.html.setAttribute("class", "TextElement");
-    this.setText(text);
-  }
-  setText(newText) {
-    if (typeof newText === "string")
-      this.html.textContent = newText;
-    else throw Error("Invalid text.");
   }
 }
 
-class LabelElement {
+class LabelElement extends TextualElement {
   constructor(text) {
-    this.html = document.createElement("label");
-    this.html.setAttribute("class", "LabelElement");
-    this.html.textContent = text ?? "label";
-  }
-  setText(newText) {
-    if (typeof newText === "string")
-      this.html.textContent = newText;
-    else throw Error("Invalid label.");
+    super('label',text);
+    this.html.setAttribute("class", "TextElement");
   }
 }
 
-class TextInput { 
+class HeaderElement extends TextualElement {
+  static allowedTags = ['h1','h2','h3','h4','h5','h6'];
+  constructor(text,size=1) {
+    super(HeaderElement.allowedTags[size-1],text);
+    this.html.setAttribute("class", "HeaderElement");
+  }
+}
+
+class BoxContainer extends UIComponent {
+  constructor(className) {
+    super();
+    this.html = document.createElement("div");
+    this.html.setAttribute("class", className ?? "BoxContainer");
+  }
+  setContent(component) {
+    if (component.ui) {
+      this.content = component;
+      this.html.appendChild(component.html);
+    }
+    else throw new Error("Invalid content.");
+  }
+}
+
+class ListElement extends UIComponent {
+  constructor(component,deleteFunction) {
+    super();
+    this.html = document.createElement("span");
+    this.html.setAttribute("class", "ListElement");
+    if (component.ui) {
+      this.content = component;
+      this.html.appendChild(component.html);
+    }
+    else throw new Error("Invalid content.");
+    if (deleteFunction instanceof Function) {
+      this.delete = deleteFunction;
+      this.del = new ControlButton('x');
+      this.del.setAction(() => this.delete());
+      this.html.appendChild(this.del.html);
+    }
+    else throw new Error("Invalid function.");
+  }
+}
+
+class ListComponent extends UIComponent {
+  constructor() {
+    super();
+    this.html = document.createElement("div");
+    this.html.setAttribute("class", "ListComponent");
+    this.items = [];
+  }
+  removeItem(item) {
+    if (item.ui) {
+      this.items.splice(this.items.indexOf(item),1);
+      this.html.removeChild(item.html);
+    }
+    else throw new Error("Invalid item.");
+  }
+  addItem(item) {
+    if (item.ui) {
+      const elem = new ListElement(item,
+        () => this.removeItem(item));
+      this.items.push(elem);
+      this.html.appendChild(elem.html);
+    }
+    else throw new Error("Invalid item.");
+  }
+}
+
+class InputElement extends UIComponent {
+
+}
+
+class TextInput extends InputElement { 
   constructor(defaultText) {
     this.html = document.createElement("input");
     this.html.setAttribute("type", "text");
@@ -202,6 +272,21 @@ class ControlButton {
     }
   }
   trigger() { this.html.dispatchEvent(new Event('click')); }
+}
+
+// Components
+class DualPane extends UIComponent {
+  constructor(className) {
+    super();
+    this.left = new BoxContainer("LeftPane");
+    this.right = new BoxContainer("RightPane");
+    this.container = new BoxContainer("DualPaneContainer");
+    this.container.html.appendChild(this.components.left);
+    this.container.html.appendChild(this.components.right);
+    this.html = this.container.html;
+  }
+  setLeft(component) { this.left.setContent(component); }
+  setRight(component) { this.right.setContent(component); }
 }
 
 class ColumnComponent {
