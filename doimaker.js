@@ -45,18 +45,18 @@ async function readJson(fileobj) {
 
 // FRONTEND LIBRARY 
 
-class UIComponent { // extend only
+class UIElement { // extend only
   constructor() { this.ui = true; }
 }
 
-class TextualElement extends UIComponent { // extend only
-  #allowedTags = [
+class TextualElement extends UIElement { // extend only
+  static allowedTags = [
     'p', 'label', 'span',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
   ];
   constructor(tag, text) {
     super();
-    if (DisplayElement.#allowedTags.has(tag))
+    if (TextualElement.allowedTags.includes(tag))
       this.html = document.createElement(tag);
     else throw new Error("Invalid tag.");
     this.setText(text);
@@ -90,72 +90,18 @@ class HeaderElement extends TextualElement {
   }
 }
 
-class BoxContainer extends UIComponent {
-  constructor(className) {
-    super();
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", className ?? "BoxContainer");
-  }
-  setContent(component) {
-    if (component.ui) {
-      this.content = component;
-      this.html.appendChild(component.html);
-    }
-    else throw new Error("Invalid content.");
-  }
-}
-
-class ListElement extends UIComponent {
-  constructor(component,deleteFunction) {
-    super();
-    this.html = document.createElement("span");
-    this.html.setAttribute("class", "ListElement");
-    if (component.ui) {
-      this.content = component;
-      this.html.appendChild(component.html);
-    }
-    else throw new Error("Invalid content.");
-    if (deleteFunction instanceof Function) {
-      this.delete = deleteFunction;
-      this.del = new ControlButton('x');
-      this.del.setAction(() => this.delete());
-      this.html.appendChild(this.del.html);
-    }
-    else throw new Error("Invalid function.");
-  }
-}
-
-class ListComponent extends UIComponent {
+class InputElement extends UIElement {
   constructor() {
     super();
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", "ListComponent");
-    this.items = [];
   }
-  removeItem(item) {
-    if (item.ui) {
-      this.items.splice(this.items.indexOf(item),1);
-      this.html.removeChild(item.html);
-    }
-    else throw new Error("Invalid item.");
+  get value() {
+    return this.html.value;
   }
-  addItem(item) {
-    if (item.ui) {
-      const elem = new ListElement(item,
-        () => this.removeItem(item));
-      this.items.push(elem);
-      this.html.appendChild(elem.html);
-    }
-    else throw new Error("Invalid item.");
-  }
-}
-
-class InputElement extends UIComponent {
-
 }
 
 class TextInput extends InputElement { 
   constructor(defaultText) {
+    super();
     this.html = document.createElement("input");
     this.html.setAttribute("type", "text");
     this.html.setAttribute("class", "TextInput");
@@ -166,12 +112,10 @@ class TextInput extends InputElement {
     document.body.appendChild(this.sizer);
     this.html.addEventListener("input", () => {
       this.sizer.textContent = this.html.value+" ";
-      console.log(this.sizer.offsetWidth + ': ' + this.sizer.textContent);
+      console.log(this.sizer.offsetWidth + ': '
+        + this.sizer.textContent);
       this.html.style.width = this.sizer.offsetWidth + 'px';
     });
-  }
-  get value() {
-    return this.html.value;
   }
   set value(newValue) {
     if (typeof newValue === "string") this.html.value = newValue;
@@ -179,15 +123,13 @@ class TextInput extends InputElement {
   }
 }
 
-class NumberInput {
+class NumberInput extends InputElement {
   constructor(defaultValue) {
+    super();
     this.html = document.createElement("input");
     this.html.setAttribute("type", "number");
     this.html.setAttribute("class", "NumberInput");
     this.html.value = defaultValue || 0;
-  }
-  get value() {
-    return this.html.value;
   }
   set value(newValue) {
     if (typeof newValue === "number") this.html.value = newValue;
@@ -195,8 +137,9 @@ class NumberInput {
   }
 }
 
-class CheckboxInput {
+class CheckboxInput extends InputElement {
   constructor() {
+    super();
     this.html = document.createElement("input");
     this.html.setAttribute("type", "checkbox");
     this.html.setAttribute("class", "CheckboxInput");
@@ -206,15 +149,13 @@ class CheckboxInput {
   }
 }
 
-class DateInput {
+class DateInput extends InputElement {
   constructor() {
+    super();
     this.html = document.createElement("input");
     this.html.setAttribute("type","date");
     this.html.setAttribute("class","DateInput");
     this.html.value = "";
-  }
-  get value() {
-    return this.html.value;
   }
   set value(newValue) {
     if (typeof newValue === "string"
@@ -225,17 +166,15 @@ class DateInput {
   }
 }
 
-class MenuInput {
+class MenuInput extends InputElement {
   constructor() {
+    super();
     this.html = document.createElement("select");
     this.html.setAttribute("class", "InputMenu");
     const voidOption = document.createElement("option");
     voidOption.value = 0;
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
-  }
-  get value() {
-    return [this.html.value, this.html.textContent];
   }
   add(newOption) {
     if (newOption.const && newOption.title) {
@@ -248,8 +187,9 @@ class MenuInput {
   }
 }
 
-class FilePicker {
+class FilePicker extends UIElement {
   constructor() {
+    super();
     this.html = document.createElement("input");
     this.html.setAttribute("type", "file");
     this.html.setAttribute("class", "FilePicker");
@@ -259,8 +199,9 @@ class FilePicker {
   }
 }
 
-class ControlButton {
+class ControlButton extends UIElement {
   constructor(text) {
+    super();
     this.html = document.createElement("button");
     this.html.setAttribute("type", "button");
     this.html.setAttribute("class", "ControlButton");
@@ -274,120 +215,134 @@ class ControlButton {
   trigger() { this.html.dispatchEvent(new Event('click')); }
 }
 
-// Components
-class DualPane extends UIComponent {
+class UIComponent extends UIElement {
   constructor(className) {
     super();
-    this.left = new BoxContainer("LeftPane");
-    this.right = new BoxContainer("RightPane");
-    this.container = new BoxContainer("DualPaneContainer");
-    this.container.html.appendChild(this.components.left);
-    this.container.html.appendChild(this.components.right);
+    this.name = null;
+    this.value = null;
+    this.items = null;
+    this.html = document.createElement("div");
+    this.html.setAttribute("class", className ?? "UIComponent");
+  }
+  validate(content) {
+    if (!content?.ui
+      || content?.name == null
+      || content?.value == null)
+      throw new Error("Invalid content.");
+    return true;
+  }
+}
+
+// UI COMPONENTS
+// Every view must be one a component,
+// as they return names and values
+// which interface with the models
+// *Conventions:
+// => Everyone provides .name, .value, .items
+// => Singletons have non-null .name, .value
+// => Compounds have non-null .items[]
+// => .items have non-null .items[] OR .name, .value
+
+class ColumnComponent extends UIComponent { 
+  constructor(className) {
+    super(className ?? "CompoundComponent");
+    this.items = [];
+  }
+  add(newItem) {
+    if (newItem instanceof UIComponent)) {
+      newItem.html.style.display = "block";
+      this.items.push(newItem);
+      this.html.appendChild(newItem.html);
+    }
+  }
+  remove(item) {
+    if (!this.items.includes(item))
+      throw new Error("Item not found");
+    this.items.splice(this.items.indexOf(item),1);
+    this.html.removeChild(item.html);
+  }
+}
+
+class RowComponent extends UIComponent { 
+  constructor(className) {
+    super(className ?? "CompoundComponent");
+    this.items = [];
+  }
+  add(newItem) {
+    if (newItem instanceof UIComponent)) {
+      newItem.html.style.display = "inline";
+      this.items.push(newItem);
+      this.html.appendChild(newItem.html);
+    }
+  }
+  remove(item) {
+    if (!this.items.includes(item))
+      throw new Error("Item not found");
+    this.items.splice(this.items.indexOf(item),1);
+    this.html.removeChild(item.html);
+  }
+}
+
+class EditableList extends ColumnComponent {
+  constructor() { super("ListComponent"); }
+  addItem(item) {
+    if (item instanceof UIComponent) {
+      const element = new RowComponent("ListEntry");
+      element.add(item);
+      const delButton = new ControlButton('x');
+
+      // TODO: What?
+      delButton.setAction(() => this.remove(element));
+
+      element.add(delButton);
+      this.items.push(element);
+      this.html.appendChild(element.html);
+    }
+  }
+}
+
+class LabeledInput extends UIComponent {
+  constructor(name,labelElement,inputElement) {
+    super("LabeledInput");
+    if (typeof name === "string") this.name = name;
+    else throw new Error("Invalid name.");
+    this.name = name ?? "generic-name";
+    if (labelElement instanceof LabelElement) {
+      this.label = labelElement;
+      this.html.appendChild(labelElement.html);
+    }
+    else throw new Error("Invalid label element.");
+    if (inputElement instanceof InputElement) {
+      this.input = inputElement;
+      this.html.appendChild(inputElement.html);
+    }
+    else throw new Error("Invalid input element.");
+  }
+}
+
+class DualPane extends CompoundComponent {
+  constructor() {
+    super("DualPane");
+    this.left = document.createElement(div);
+    this.left.setAttribute("LeftPane");
+    this.right = document.createElement(div);
+    this.right.setAttribute("RightPane");
+    this.container = document.createElement(div);
+    this.container.setAttribute("class","DualPaneContainer");
     this.html = this.container.html;
   }
-  setLeft(component) { this.left.setContent(component); }
-  setRight(component) { this.right.setContent(component); }
-}
-
-class ColumnComponent {
-  constructor() {
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", "ColumnComponent");
-  }
-  add(newItem) {
-    if (newItem instanceof Node) {
-      newItem.style.display = "block";
-      this.html.appendChild(newItem);
-    }
-    else if (newItem.html) {
-      newItem.html.style.display = "block";
-      this.html.appendChild(newItem.html);
+  setLeft(component) {
+    if (this.validate(component)) {
+      this.items[0] = component;
+      component.html.style.display = "block";
+      this.left.appendChild(component.html);
     }
   }
-}
-
-class RowComponent { // remove?
-  constructor() {
-    this.html = document.createElement("span");
-    this.html.setAttribute("class", "RowComponent");
-    this.items = [];
-  }
-  add(newItem) {
-    if (newItem instanceof Node) {
-      this.html.appendChild(newItem);
-      this.items.push(newItem);
-    }
-    else if (newItem.html) {
-      this.html.appendChild(newItem.html);
-      this.items.push(newItem.html);
-    }
-  }
-  get value() {
-    return Array.from(this.items.map(item => item.value));
-  }
-}
-
-class ListComponent { // needs complete fixing!
-  constructor(title) {
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", "ListComponent");
-
-    const headerLine = document.createElement("span");
-    const header = document.createElement("h3");
-    header.setAttribute("class", "ListHeader");
-    header.textContent = title ?? "ListComponent";
-    const addButton = new ControlButton("+");
-    addButton.setAction(() => this.new());
-    headerLine.appendChild(header);
-    headerLine.appendChild(addButton.html);
-    this.html.appendChild(headerLine);
-
-    const itemBox = document.createElement("div");
-    itemBox.setAttribute("class", "ItemBox");
-    this.box = itemBox;
-    this.html.appendChild(itemBox);
-
-    this.items = [];
-    this.default = null;
-  }
-
-  setDefault(defaultLine) {
-    if (defaultLine instanceof Node) this.default = defaultLine;
-    else throw new Error("Invalid default line.");
-  }
-
-  valueOf(index) {
-    if (this.items.length > index) {
-      return this.items[index].value;
-    }
-  }
-
-  add(newItem) {
-    let htmlItem = newItem;
-    if (newItem.html) htmlItem = newItem.html;
-    if (htmlItem instanceof Node) {
-      this.items.push(htmlItem);
-      const position = this.items.length - 1;
-      const newLine = document.createElement("span");
-      newLine.setAttribute("class", "ItemLine");
-      newLine.appendChild(htmlItem);
-      const delButton = new ControlButton("-");
-      delButton.setAction(() =>
-        this.remove(position));
-      newLine.appendChild(delButton.html);
-      this.box.appendChild(newLine);
-//      this.nodes.push(newLine);
-    }
-    else throw new Error("Invalid new line.");
-  }
-
-  new() { this.add(this.default); }
-
-  remove(index) {
-    if (this.nodes.length > index) {
-      this.box.removeChild(this.nodes[index]);
-      this.nodes.splice(index,1);
-      this.items.splice(index,1);
+  setRight(component) {
+    if (this.validate(component)) {
+      this.items[1] = component;
+      component.html.style.display = "block";
+      this.right.appendChild(component.html);
     }
   }
 }
@@ -396,7 +351,6 @@ class PagerComponent {
   constructor() {
     this.current = 0;
     this.pages = [];
-    this.default = null;
 
     this.html = document.createElement("div");
     this.html.setAttribute("class", "PagerComponent");
@@ -419,10 +373,6 @@ class PagerComponent {
     this.controls.add(nextButton.html);
     this.html.appendChild(this.controls.html);
   }
-  setDefault(defaultPage) {
-    if (defaultPage instanceof Node) this.default = defaultPage;
-    else throw new Error("Invalid default page.");
-  }
   add(newPage) {
     let htmlPage = newPage;
     if (newPage.html) htmlPage = newPage.html;
@@ -442,17 +392,9 @@ class PagerComponent {
       if (this.current == index) 
         this.select((this.current ? this.current : 1) -1);
       this.pageArea.removeChild(deleted);
-/*      const newPageArea = document.createElement("div");
-      newPageArea.setAttribute("class", "PagerComponent");
-      for (const page of this.pages) newPageArea.appendChild(page);
-      delete this.pageArea;
-      this.pageArea = newPageArea;
-      this.select(this.current);
-      this.html.prepend(this.pageArea);*/
     }
     else throw new Error("Invalid page index.");
   }
-  new() { this.add(this.default); }
   del() { this.remove(this.current); }
   select(index) {
     if (index < 0 || index >= this.pages.length)
@@ -1907,5 +1849,5 @@ class App {
 // ENTRYPOINT
 
 const doimaker = new App();
-doimaker.init();
+//doimaker.init();
 
