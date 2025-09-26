@@ -51,11 +51,13 @@ class UIElement { // extend only
   constructor() {
     this.ui = true;
     this.html = document.createElement(this.constructor.tag)
-    this.setAttribute("class",this.constructor.className);
+    this.html.classList.add(this.constructor.className);
   }
   show() { this.html.hidden = false; }
   hide() { this.html.hidden = true; }
   toggle() { this.html.hidden = !this.html.hidden; }
+  pick() { this.html.classList.add("picked"); }
+  unpick() { this.html.classList.remove("picked"); }
 }
 
 class DisplayElement extends UIElement {
@@ -169,7 +171,7 @@ class CheckboxInput extends UIElement {
     super();
     this.html = document.createElement("input");
     this.html.setAttribute("type", "checkbox");
-    this.html.setAttribute("class", "CheckboxInput");
+    this.html.classList.add("CheckboxInput");
   }
   get value() {
     return this.html.checked;
@@ -181,7 +183,7 @@ class MenuInput extends UIElement {
     super();
     this.options = {};
     this.html = document.createElement("select");
-    this.html.setAttribute("class", "InputMenu");
+    this.html.classList.add("InputMenu");
     const voidOption = document.createElement("option");
     voidOption.value = 0;
     voidOption.textContent = "";
@@ -220,7 +222,7 @@ class ControlButton extends UIElement {
     super();
     this.html = document.createElement("button");
     this.html.setAttribute("type", "button");
-    this.html.setAttribute("class", "ControlButton");
+    this.html.classList.add("ControlButton");
     this.html.textContent = text ?? "Button"
   }
   setAction(actionFunction) {
@@ -287,10 +289,43 @@ class Form extends Block {
   }
 }
 
+class DualPane extends UIComponent {
+  // TODO...
+}
+
+class ListEntry extends Row {
+  // TODO... with embedded button as prop
+}
+
 class List extends Block {
   static tag = "div";
   static className = "List";
-  //TODO: ...
+  constructor(id) {
+    super(id); 
+    this.current = null;
+    this.last = -1;
+  }
+  reset() {
+    this.items.forEach((item)=>item.unpick());
+  }
+  select(index) {
+    if (index == null || index<0 || index>this.last)
+      throw new Error("Invalid index.");
+    this.items[index].pick();
+    this.items[this.current].unpick();
+    this.current = index;
+  }
+  add(newEntry) {
+    // TODO...
+  }
+  remove(index) {
+    // TODO...
+    reset();
+  }
+}
+
+class EditableList extends UIComponent {
+  // TODO...
 }
 
 class Pager extends Block {
@@ -306,17 +341,7 @@ class Pager extends Block {
       throw new Error("Invalid index.");
     this.items[this.current].hide();
     this.items[index].show();
-    this.current=index;
-  }
-  toFirst() { this.select(0); }
-  toLast() { this.select(this.last); }
-  next() {
-    if (this.current < this.last)
-      this.select(this.current+1);
-  }
-  prev() {
-    if (this.current > 0)
-      this.select(this.current-1);
+    this.current = index;
   }
   add(newPage) {
     if (newItem.ui) {
@@ -333,6 +358,16 @@ class Pager extends Block {
     if (this.current === index && this.current > 0)
       this.select(this.current-=1);
   }
+  toFirst() { this.select(0); }
+  toLast() { this.select(this.last); }
+  next() {
+    if (this.current < this.last)
+      this.select(this.current+1);
+  }
+  prev() {
+    if (this.current > 0)
+      this.select(this.current-1);
+  }
 }
 
 class PagerNav extends UIComponent {
@@ -340,23 +375,30 @@ class PagerNav extends UIComponent {
   static className = "PagerComponent";
   constructor(id) {
     super(id);
+    this.generate = null;
     this.pager = new Pager();
-    this.factory = null;
-    this.prevBtn = new ControlButton("<");
-    this.prevBtn.setAction(this.pager.prev());
-    this.nextBtn = new ControlButton(">");
-    this.nextBtn.setAction(this.pager.next());
+    this.html.appendChild(this.pager.html);
+    this.controls = new Row();
     this.addBtn = new ControlButton("+");
     this.addBtn.setAction(this.addPage());
     this.delBtn = new ControlButton("-");
     this.delBtn.setAction(this.delPage());
+    this.prevBtn = new ControlButton("<");
+    this.prevBtn.setAction(this.pager.prev());
+    this.nextBtn = new ControlButton(">");
+    this.nextBtn.setAction(this.pager.next());
+    this.controls.add(this.addBtn);
+    this.controls.add(this.delBtn);
+    this.controls.add(this.prevBtn);
+    this.controls.add(this.nextBtn);
+    this.html.appendChild(this.controls.html);
   }
-  setFactory(factory) { 
+  setFactory(factory) { // zero-arity factory
     if (factory instanceof Function)
-      this.defaultPage = factory;
+      this.generate = factory;
   }
   addPage() {
-    const newPage = this.factory();
+    const newPage = this.generate();
     this.pager.add(newPage);
   }
   delPage() {
@@ -373,7 +415,7 @@ class UIComponent extends UIElement {
     this.value = null;
     this.items = null;
     this.html = document.createElement("div");
-    this.html.setAttribute("class", className ?? "UIComponent");
+    this.html.classList.add(className ?? "UIComponent");
   }
   validate(content) {
     if (!content?.ui
