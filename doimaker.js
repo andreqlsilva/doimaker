@@ -85,28 +85,32 @@ class LabelElement extends TextualElement {
 class HeaderElement extends TextualElement {
   static allowedTags = ['h1','h2','h3','h4','h5','h6'];
   constructor(text,size=1) {
+    if (size<1 || size>6) throw new Error("Invalid header.");
     super(HeaderElement.allowedTags[size-1],text);
     this.html.setAttribute("class", "HeaderElement");
   }
 }
 
 class InputElement extends UIElement {
-  constructor() {
+  constructor(defaultValue) {
     super();
+    this.html = document.createElement("input");
+    this.defaultValue = defaultValue ?? null;
+    this.reset();
   }
-  get value() {
-    return this.html.value;
+  get value() { return this.html.value; }
+  set defaultValue(newDefault) {
+    this.defaultValue = newDefault;
   }
+  reset() { this.html.value = this.defaultValue; }
 }
 
 class TextInput extends InputElement { 
   constructor(defaultText) {
-    super();
-    this.html = document.createElement("input");
+    super(defaultText);
     this.html.setAttribute("type", "text");
     this.html.setAttribute("class", "TextInput");
-    this.html.value = defaultText || "";
-    this.sizer = document.createElement("span");
+/*    this.sizer = document.createElement("span");
     this.sizer.setAttribute("class", "TextInputSizer");
     this.sizer.setAttribute("contenteditable", "true");
     document.body.appendChild(this.sizer);
@@ -115,7 +119,7 @@ class TextInput extends InputElement {
       console.log(this.sizer.offsetWidth + ': '
         + this.sizer.textContent);
       this.html.style.width = this.sizer.offsetWidth + 'px';
-    });
+    });*/
   }
   set value(newValue) {
     if (typeof newValue === "string") this.html.value = newValue;
@@ -125,11 +129,9 @@ class TextInput extends InputElement {
 
 class NumberInput extends InputElement {
   constructor(defaultValue) {
-    super();
-    this.html = document.createElement("input");
+    super(defaultValue);
     this.html.setAttribute("type", "number");
     this.html.setAttribute("class", "NumberInput");
-    this.html.value = defaultValue || 0;
   }
   set value(newValue) {
     if (typeof newValue === "number") this.html.value = newValue;
@@ -137,7 +139,22 @@ class NumberInput extends InputElement {
   }
 }
 
-class CheckboxInput extends InputElement {
+class DateInput extends InputElement {
+  constructor() {
+    super("");
+    this.html.setAttribute("type","date");
+    this.html.setAttribute("class","DateInput");
+  }
+  set value(newValue) {
+    if (typeof newValue === "string"
+      && !isNaN(Date.parse(newValue))) {
+      this.html.value = newValue;
+    }
+    else throw new Error("Invalid date.")
+  }
+}
+
+class CheckboxInput extends UIElement {
   constructor() {
     super();
     this.html = document.createElement("input");
@@ -149,26 +166,10 @@ class CheckboxInput extends InputElement {
   }
 }
 
-class DateInput extends InputElement {
+class MenuInput extends UIElement {
   constructor() {
     super();
-    this.html = document.createElement("input");
-    this.html.setAttribute("type","date");
-    this.html.setAttribute("class","DateInput");
-    this.html.value = "";
-  }
-  set value(newValue) {
-    if (typeof newValue === "string"
-      && !isNaN(Date.parse(newValue))) {
-      this.html.value = newValue;
-    }
-    else throw new Error("Invalid date.")
-  }
-}
-
-class MenuInput extends InputElement {
-  constructor() {
-    super();
+    this.options = {};
     this.html = document.createElement("select");
     this.html.setAttribute("class", "InputMenu");
     const voidOption = document.createElement("option");
@@ -176,14 +177,19 @@ class MenuInput extends InputElement {
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
   }
-  add(newOption) {
-    if (newOption.const && newOption.title) {
+  add(code, title) {
+    if (code && title) {
+      this.options[code] = title;
       const option = document.createElement("option");
-      option.value = newOption.const;
-      option.textContent = newOption.title;
+      option.value = code;
+      option.textContent = title;
       this.html.appendChild(option);
     }
-    else throw new Error("Invalid new option {const, title}.");
+    else throw new Error("Invalid new option.");
+  }
+  remove(code) {
+    delete this.options[code];
+    // TODO: find child of this.html with code and remove it
   }
 }
 
@@ -226,8 +232,8 @@ class UIComponent extends UIElement {
   }
   validate(content) {
     if (!content?.ui
-      || content?.name == null
-      || content?.value == null)
+      || (content?.items == null
+        && (content?.name == null || content?.value == null)
       throw new Error("Invalid content.");
     return true;
   }
@@ -245,11 +251,11 @@ class UIComponent extends UIElement {
 
 class ColumnComponent extends UIComponent { 
   constructor(className) {
-    super(className ?? "CompoundComponent");
+    super(className ?? "ColumnComponent");
     this.items = [];
   }
   add(newItem) {
-    if (newItem instanceof UIComponent)) {
+    if (newItem instanceof UIComponent) {
       newItem.html.style.display = "block";
       this.items.push(newItem);
       this.html.appendChild(newItem.html);
@@ -265,7 +271,7 @@ class ColumnComponent extends UIComponent {
 
 class RowComponent extends UIComponent { 
   constructor(className) {
-    super(className ?? "CompoundComponent");
+    super(className ?? "RowComponent");
     this.items = [];
   }
   add(newItem) {
@@ -306,7 +312,7 @@ class LabeledInput extends UIComponent {
     super("LabeledInput");
     if (typeof name === "string") this.name = name;
     else throw new Error("Invalid name.");
-    this.name = name ?? "generic-name";
+    this.name = name;
     if (labelElement instanceof LabelElement) {
       this.label = labelElement;
       this.html.appendChild(labelElement.html);
@@ -320,14 +326,14 @@ class LabeledInput extends UIComponent {
   }
 }
 
-class DualPane extends CompoundComponent {
+class DualPane extends UIComponent {
   constructor() {
     super("DualPane");
-    this.left = document.createElement(div);
-    this.left.setAttribute("LeftPane");
-    this.right = document.createElement(div);
-    this.right.setAttribute("RightPane");
-    this.container = document.createElement(div);
+    this.left = document.createElement("div");
+    this.left.setAttribute("class","LeftPane");
+    this.right = document.createElement("div");
+    this.right.setAttribute("class","RightPane");
+    this.container = document.createElement("div");
     this.container.setAttribute("class","DualPaneContainer");
     this.html = this.container.html;
   }
@@ -642,6 +648,25 @@ class DoiEntity {
   }
 }
 
+class RepList {
+  constructor() { this.list = new Set(); }
+  addRep(ni) {
+    if (CPF.validate(ni) || CNPJ.validate(ni)) {
+      this.list.add(ni);
+      return true;
+    }
+    return false;
+  }
+  delRep(ni) {
+    this.list.delete(ni);
+  }
+
+  render() {
+    const container = new EditableList();
+
+  }
+}
+
 class Subject extends DoiEntity {
   static entity = "Subject";
   #representantes;
@@ -652,7 +677,7 @@ class Subject extends DoiEntity {
       "indicadorNaoConstaParticipacaoOperacao",
       "indicadorNiIdentificado"
     ]);
-    this.#representantes=new Set();
+    this.#representantes=new RepList();
     this.view = this.render();
   }
 
@@ -661,15 +686,11 @@ class Subject extends DoiEntity {
   }
 
   addRepresentante(ni) {
-    if (CPF.validate(ni) || CNPJ.validate(ni)) {
-      this.representantes.add(ni);
-      return true;
-    }
-    return false;
+    this.#representantes.addRep(ni);
   }
 
   removeRepresentante(ni) {
-    this.representantes.delete(ni);
+    this.#representantes.delRep(ni);
   }
 
   render() {
