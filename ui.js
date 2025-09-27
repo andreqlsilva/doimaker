@@ -189,10 +189,10 @@ class MenuInput extends UIElement {
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
   }
+  get value() { return this.html.value; }
   add(code, title) {
     if (code && title) {
-      this.options[code] = title;
-      const option = document.createElement("option");
+      this.options[code] = document.createElement("option");
       option.value = code;
       option.textContent = title;
       this.html.appendChild(option);
@@ -200,8 +200,8 @@ class MenuInput extends UIElement {
     else throw new Error("Invalid new option.");
   }
   remove(code) {
+    this.html.removeChild(this.options[code]);
     delete this.options[code];
-    // TODO: find child of this.html with code and remove it
   }
 }
 
@@ -266,7 +266,7 @@ class Block extends UIComponent {
     if (index === -1) throw new Error("Item not found.");
     return index;
   }
-  removeItem(item) { this.remove(this.indexOf(item)); }
+  removeItem(item) { this.remove(this.items.indexOf(item)); }
 }
 
 class Row extends Block {
