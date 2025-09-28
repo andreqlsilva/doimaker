@@ -45,9 +45,9 @@ async function readJson(fileobj) {
 
 // FRONTEND LIBRARY 
 
-class UIElement { // extend only
+class UIComponent { // extend only
   static tag = "p";
-  static className = "UIElement";
+  static className = "UIComponent";
   constructor() {
     this.ui = true;
     this.html = document.createElement(this.constructor.tag)
@@ -58,11 +58,13 @@ class UIElement { // extend only
   toggle() { this.html.hidden = !this.html.hidden; }
   pick() { this.html.classList.add("picked"); }
   unpick() { this.html.classList.remove("picked"); }
+  setId(id) { if (id) this.html.setAttribute("id",id); }
 }
 
-class DisplayElement extends UIElement {
+class DisplayElement extends UIComponent { // also extend only
   static tag = "p";
-  static className = "UIElement";
+  static className = "DisplayElement";
+  #title;
   constructor(title) {
     super();
     this.title = title;
@@ -75,10 +77,10 @@ class DisplayElement extends UIElement {
 
 class TextualElement extends DisplayElement {
   static tag = "p";
-  static className = "UIElement";
+  static className = "TextualElement";
   constructor(title) {
     super(title);
-    this.html.textContent = title;
+    this.html.textContent = this.title;
   }
 }
 
@@ -87,7 +89,7 @@ class LabelElement extends TextualElement {
   static className = "LabelElement";
 }
 
-class HElement extends TextualElement {
+class HElement extends TextualElement { // extend-only
   static className = "HeaderElement";
 }
 
@@ -103,13 +105,14 @@ class H3Element extends HElement {
   static tag = "h3";
 }
 
-class InputElement extends UIElement {
+class InputElement extends UIComponent {
   static tag = "input";
   static type = "text";
   static className = "InputElement";
   static isValid = (newInput) => {
-    return true;
+    return (newInput != null);
   }
+  #defaultValue;
   constructor(defaultValue) {
     super();
     this.html.setAttribute("type", this.constructor.type);
@@ -147,10 +150,12 @@ class NumberInput extends InputElement {
   static type = "number";
   static className = "NumberInput";
   static isValid = (newInput) => {
-    return (typeof newInput === "number");
+    if (newInput == null || newInput === "") return false;
+    const n = Number(newInput);
+    return (Number.isFinite(n))
   };
   constructor(defaultValue) {
-    super(defaultValue);
+    super(defaultValue ?? 0);
   }
 }
 
@@ -158,15 +163,18 @@ class DateInput extends InputElement {
   static type = "date";
   static className = "DateInput";
   static isValid = (newInput) => {
-    return (typeof newInput === "string"
-      && !isNaN(Date.parse(newInput)));
+    return (newInput !== null
+      && typeof newInput === "string"
+      && (newInput === ""
+        || !isNaN(Date.parse(newInput))
+      );
   };
   constructor() {
     super("");
   }
 }
 
-class CheckboxInput extends UIElement {
+class CheckboxInput extends UIComponent {
   constructor() {
     super();
     this.html = document.createElement("input");
@@ -178,7 +186,7 @@ class CheckboxInput extends UIElement {
   }
 }
 
-class MenuInput extends UIElement {
+class MenuInput extends UIComponent {
   constructor() {
     super();
     this.options = {};
@@ -205,9 +213,9 @@ class MenuInput extends UIElement {
   }
 }
 
-class FilePicker extends UIElement {
+class FilePicker extends UIComponent {
   static tag = "input";
-  static class = "FilePicker";
+  static className = "FilePicker";
   constructor() {
     super();
     this.html.setAttribute("type", "file");
@@ -217,12 +225,12 @@ class FilePicker extends UIElement {
   }
 }
 
-class ControlButton extends UIElement {
+class ControlButton extends UIComponent {
+  static tag = "button";
+  static className = "ControlButton";
   constructor(text) {
     super();
-    this.html = document.createElement("button");
     this.html.setAttribute("type", "button");
-    this.html.classList.add("ControlButton");
     this.html.textContent = text ?? "Button"
   }
   setAction(actionFunction) {
@@ -230,22 +238,14 @@ class ControlButton extends UIElement {
       this.html.addEventListener("click", actionFunction);
     }
   }
-  trigger() { this.html.dispatchEvent(new Event('click')); }
-}
-
-class UIComponent extends UIElement {
-  constructor(id) { // id will be optional
-    super();
-    this.id = id;
-    this.html.setAttribute("id", this.id);
-  }
+  trigger() { this.html.click(); }
 }
 
 class Block extends UIComponent {
   static tag = "div";
   static className = "Block";
-  constructor(id) {
-    super(id);
+  constructor() {
+    super();
     this.items = [];
   }
   add(newItem) {
@@ -270,7 +270,7 @@ class Block extends UIComponent {
 }
 
 class Row extends Block {
-  static tag = "span";
+  static tag = "div"; // each row takes up the whole width
   static className = "Row";
   constructor(id) { super(id); }
   add(newItem) {
@@ -294,14 +294,36 @@ class DualPane extends UIComponent {
 }
 
 class ListEntry extends Row {
-  // TODO... with embedded button as prop
+  constructor(id) {
+    super(id);
+    this.line = null;
+    this.delBtn = new ControlButton('-');
+    // delete button action must be set by parent
+  }
+  setLine(line) {
+    if (line.ui) {
+      this.html.innerHTML = "";
+      this.line = line;
+      this.add(line);
+      this.add(this.delBtn);
+    }
+    else throw new Error("Invalid line content.");
+  }
 }
 
-class List extends Block {
+class EditableList extends Block {
   static tag = "div";
   static className = "List";
-  constructor(id) {
-    super(id); 
+  constructor(title) {
+    super(title); 
+    this.header = new Row();
+    this.header.html.classList.add("ListHeader");
+    this.title = new TextualElement(title ?? "List");
+    this.header.add(this.title);
+    this.addBtn = new ControlButton('+');
+    this.header.add(this.addBtn);
+    // addBtn action set by parent
+    this.html.appendChild(this.header); // beware...
     this.current = null;
     this.last = -1;
   }
@@ -316,19 +338,18 @@ class List extends Block {
     this.current = index;
   }
   add(newEntry) {
-    // TODO...
-  }
-  remove(index) {
-    // TODO...
-    reset();
+    if (newEntry instanceof ListEntry) {
+      super.add(newEntry);
+      const index = this.items.length - 1;
+      newEntry.delBtn.setAction(() => this.removeItem(newEntry));
+      newEntry.line.html.addEventListener("click",
+        this.select(index));
+    }
+    else throw new Error("Invalid list entry.")
   }
 }
 
-class EditableList extends UIComponent {
-  // TODO...
-}
-
-class Pager extends Block {
+class PagerPane extends Block {
   static tag = "div";
   static className = "Pager";
   constructor(id) {
@@ -370,452 +391,35 @@ class Pager extends Block {
   }
 }
 
-class PagerNav extends UIComponent {
+class PagerNav extends EditableList {
   static tag = "div";
-  static className = "PagerComponent";
+  static className = "PagerNav"
   constructor(id) {
     super(id);
-    this.generate = null;
-    this.pager = new Pager();
+    this.pane = new PagerPane();
+  }
+}
+
+class Pager extends UIComponent {
+  static tag = "div";
+  static className = "Pager";
+  constructor(id) {
+    super(id);
+    this.nav = new PagerNav();
+    // nav.addBtn action set by parent
+    this.html.appendChild(this.nav.html);
+    this.pager = new PagerPane();
     this.html.appendChild(this.pager.html);
-    this.controls = new Row();
-    this.addBtn = new ControlButton("+");
-    this.addBtn.setAction(this.addPage());
-    this.delBtn = new ControlButton("-");
-    this.delBtn.setAction(this.delPage());
-    this.prevBtn = new ControlButton("<");
-    this.prevBtn.setAction(this.pager.prev());
-    this.nextBtn = new ControlButton(">");
-    this.nextBtn.setAction(this.pager.next());
-    this.controls.add(this.addBtn);
-    this.controls.add(this.delBtn);
-    this.controls.add(this.prevBtn);
-    this.controls.add(this.nextBtn);
-    this.html.appendChild(this.controls.html);
   }
-  setFactory(factory) { // zero-arity factory
-    if (factory instanceof Function)
-      this.generate = factory;
-  }
-  addPage() {
-    const newPage = this.generate();
-    this.pager.add(newPage);
-  }
-  delPage() {
-    this.pager.remove(this.pager.current);
-  }
-}
-
-// -------- OLD:
-
-class UIComponent extends UIElement {
-  constructor(className) {
-    super();
-    this.name = null;
-    this.value = null;
-    this.items = null;
-    this.html = document.createElement("div");
-    this.html.classList.add(className ?? "UIComponent");
-  }
-  validate(content) {
-    if (!content?.ui
-      || (content?.items == null
-        && (content?.name == null || content?.value == null)
-      throw new Error("Invalid content.");
-    return true;
-  }
-}
-
-// UI COMPONENTS
-// Every view must be one a component,
-// as they return names and values
-// which interface with the models
-// *Conventions:
-// => Everyone provides .name, .value, .items
-// => Singletons have non-null .name, .value
-// => Compounds have non-null .items[]
-// => .items have non-null .items[] OR .name, .value
-
-class ColumnComponent extends UIComponent { 
-  constructor(className) {
-    super(className ?? "ColumnComponent");
-    this.items = [];
-  }
-  add(newItem) {
-    if (newItem instanceof UIComponent) {
-      newItem.html.style.display = "block";
-      this.items.push(newItem);
-      this.html.appendChild(newItem.html);
-    }
-  }
-  remove(item) {
-    if (!this.items.includes(item))
-      throw new Error("Item not found");
-    this.items.splice(this.items.indexOf(item),1);
-    this.html.removeChild(item.html);
-  }
-}
-
-class RowComponent extends UIComponent { 
-  constructor(className) {
-    super(className ?? "RowComponent");
-    this.items = [];
-  }
-  add(newItem) {
-    if (newItem instanceof UIComponent)) {
-      newItem.html.style.display = "inline";
-      this.items.push(newItem);
-      this.html.appendChild(newItem.html);
-    }
-  }
-  remove(item) {
-    if (!this.items.includes(item))
-      throw new Error("Item not found");
-    this.items.splice(this.items.indexOf(item),1);
-    this.html.removeChild(item.html);
-  }
-}
-
-class EditableList extends ColumnComponent {
-  constructor() { super("ListComponent"); }
-  addItem(item) {
-    if (item instanceof UIComponent) {
-      const element = new RowComponent("ListEntry");
-      element.add(item);
-      const delButton = new ControlButton('x');
-
-      // TODO: What?
-      delButton.setAction(() => this.remove(element));
-
-      element.add(delButton);
-      this.items.push(element);
-      this.html.appendChild(element.html);
-    }
-  }
-}
-
-class LabeledInput extends UIComponent {
-  constructor(name,labelElement,inputElement) {
-    super("LabeledInput");
-    if (typeof name === "string") this.name = name;
-    else throw new Error("Invalid name.");
-    this.name = name;
-    if (labelElement instanceof LabelElement) {
-      this.label = labelElement;
-      this.html.appendChild(labelElement.html);
-    }
-    else throw new Error("Invalid label element.");
-    if (inputElement instanceof InputElement) {
-      this.input = inputElement;
-      this.html.appendChild(inputElement.html);
-    }
-    else throw new Error("Invalid input element.");
-  }
-}
-
-class DualPane extends UIComponent {
-  constructor() {
-    super("DualPane");
-    this.left = document.createElement("div");
-    this.left.setAttribute("class","LeftPane");
-    this.right = document.createElement("div");
-    this.right.setAttribute("class","RightPane");
-    this.container = document.createElement("div");
-    this.container.setAttribute("class","DualPaneContainer");
-    this.html = this.container.html;
-  }
-  setLeft(component) {
-    if (this.validate(component)) {
-      this.items[0] = component;
-      component.html.style.display = "block";
-      this.left.appendChild(component.html);
-    }
-  }
-  setRight(component) {
-    if (this.validate(component)) {
-      this.items[1] = component;
-      component.html.style.display = "block";
-      this.right.appendChild(component.html);
-    }
-  }
-}
-
-class PagerComponent {
-  constructor() {
-    this.current = 0;
-    this.pages = [];
-
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", "PagerComponent");
-    this.pageArea = document.createElement("div");
-    this.pageArea.setAttribute("class", "PageArea");
-    this.html.appendChild(this.pageArea);
-
-    this.controls = new RowComponent();
-    const newButton = new ControlButton("+");
-    const delButton = new ControlButton("-");
-    const prevButton = new ControlButton("<");
-    const nextButton = new ControlButton(">");
-    newButton.setAction(() => this.new());
-    delButton.setAction(() => this.del());
-    prevButton.setAction(() => this.prev());
-    nextButton.setAction(() => this.next());
-    this.controls.add(newButton.html);
-    this.controls.add(delButton.html);
-    this.controls.add(prevButton.html);
-    this.controls.add(nextButton.html);
-    this.html.appendChild(this.controls.html);
-  }
-  add(newPage) {
-    let htmlPage = newPage;
-    if (newPage.html) htmlPage = newPage.html;
-    if (htmlPage instanceof Node) {
-      this.pages.push(htmlPage);
-      this.pageArea.appendChild(htmlPage);
-      this.current = this.pages.length-1;
-      this.select(this.current);
+  addPage(newPage) {
+    if (newPage.ui) {
+      const newPage = this.generate();
+      this.pager.add(newPage);
     }
     else throw new Error("Invalid new page.");
   }
-  remove(index) {
-    if (this.pages.length < 2) return;
-    if (this.pages.length > index) {
-      const deleted = this.pages[index];
-      this.pages.splice(index,1);
-      if (this.current == index) 
-        this.select((this.current ? this.current : 1) -1);
-      this.pageArea.removeChild(deleted);
-    }
-    else throw new Error("Invalid page index.");
-  }
-  del() { this.remove(this.current); }
-  select(index) {
-    if (index < 0 || index >= this.pages.length)
-      throw new Error("Invalid page index.");
-    for (const p in this.pages) {
-      if (p != index) {
-        this.pages[p].style.display = 'none';
-      }
-      else {
-        this.pages[p].style.display = 'block';
-      }
-    }
-    this.current = index;
-  }
-  prev() {
-    if (this.current > 0) {
-      this.current-=1;
-      this.select(this.current);
-    }
-  }
-  next() {
-    if (this.current+1 < this.pages.length) {
-      this.current+=1;
-      this.select(this.current);
-    }
+  deleteCurrent() {
+    this.pager.remove(this.pager.current);
   }
 }
-
-// MODELS AND VIEWS 
-class CPF {
-  static validate(ni) {
-    if (typeof ni !== "string") return false;
-    if (!/^\d{11}$/.test(ni)) return false;
-
-    // Reject CPFs with all digits the same (e.g. "11111111111")
-    if (/^(\d)\1{10}$/.test(ni)) return false;
-
-    const digits = ni.split("").map(d => parseInt(d, 10));
-
-    // Validate first check digit
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += digits[i] * (10 - i);
-    }
-    let firstCheck = 11 - (sum % 11);
-    if (firstCheck >= 10) firstCheck = 0;
-    if (digits[9] !== firstCheck) return false;
-
-    // Validate second check digit
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += digits[i] * (11 - i);
-    }
-    let secondCheck = 11 - (sum % 11);
-    if (secondCheck >= 10) secondCheck = 0;
-    if (digits[10] !== secondCheck) return false;
-
-    return true;
-  }
-}
-
-class CNPJ {
-  static validate(ni) {
-    if (typeof ni !== "string") return false;
-    if (!/^\d{14}$/.test(ni)) return false;
-
-    // Reject CNPJs with all digits the same
-    if (/^(\d)\1{13}$/.test(ni)) return false;
-
-    const digits = ni.split("").map(d => parseInt(d, 10));
-
-    // Weights for first check digit (positions 1-12)
-    const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    // Weights for second check digit (positions 1-13)
-    const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-
-    // Calculate first check digit
-    let sum = 0;
-    for (let i = 0; i < 12; i++) {
-      sum += digits[i] * weight1[i];
-    }
-    let firstCheck = sum % 11;
-    firstCheck = firstCheck < 2 ? 0 : 11 - firstCheck;
-    if (digits[12] !== firstCheck) return false;
-
-    // Calculate second check digit
-    sum = 0;
-    for (let i = 0; i < 13; i++) {
-      sum += digits[i] * weight2[i];
-    }
-    let secondCheck = sum % 11;
-    secondCheck = secondCheck < 2 ? 0 : 11 - secondCheck;
-    if (digits[13] !== secondCheck) return false;
-
-    return true;
-  }
-}
-
-// CONTROLLER
-
-class App {
-  constructor() {
-    this.saveButton = new ControlButton("Salvar");
-    this.resumeButton = new ControlButton("Carregar");
-    this.downloadButton = new ControlButton("Download");
-    this.uploadButton = new ControlButton("Upload");
-    this.saveButton.setAction(() => this.save());
-    this.resumeButton.setAction(() => this.resume());
-    this.downloadButton.setAction(() => this.download());
-    this.uploadButton.setAction(() => this.upload());
-//    this.idlist = [];
-    const act = new Ato();
-    this.acts = [act];
-    this.pager = new PagerComponent();
-    this.pager.setDefault(act.view.html);
-    this.pager.new();
-    this.view = this.render();
-  }
-
-  new() {
-    const act = new Ato();
-    this.acts.push(act);
-    this.pager.new();
-  }
-
-  add(act) {
-    this.acts.push(act);
-    this.pager.add(act.view.html);
-  }
-
-  load(doiList) {
-    const actIdList = [];
-    const actList = [];
-    for (const doi of doiList) {
-      const actId = `${doi.numeroLivro}-${doi.folha}`;
-      if (actIdList.has(actId))
-        ato = actList[actIdList.indexOf(actId)];
-      else {
-        ato = new Ato();
-        actList.push(ato);
-        actIdList.push(actId);
-      }
-      const imovel = new Imovel();
-      ato.addImovel(imovel);
-      for (const propName in Object.keys(doi)) {
-        if (propName === 'alienantes') {
-          // TODO: add subject to ato and operation to imovel... 
-        }
-        else if (propName === 'adquirentes') {
-          // TODO: add subject to ato and operation to imovel... 
-        }
-        else if (imovel.schema.hasOwnProperty(propName)) {
-          imovel.setProp(propName, doi[propName]);
-        }
-        else if (ato.schema.hasOwnProperty(propName)) {
-          ato.setProp(propName, doi[propName]);
-        }
-        else throw new Error("Unknown property.");
-      }
-
-    }
-    for (const prop in doiObject) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = this[prop].value;
-      }
-    }
-    for (const prop in imovel) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = imovel[prop].value;
-      }
-    }
-    doiObj.alienantes=[];
-    for (const ni in imovel.alienacao) {
-      const alienante = { "participacao": imovel.alienacao[ni] };
-      const person = this.getAlienanteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          alienante[prop.name] = person[prop].value;
-      }
-      doiObj.alienantes.push(alienante);
-    }
-    doiObj.adquirentes=[];
-    for (const ni in imovel.aquisicao) {
-      const adquirente = { "participacao": imovel.aquisicao[ni] };
-      const person = this.getAdquirenteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          adquirente[prop] = person[prop].value;
-      }
-      doiObj.adquirentes.push(adquirente);
-    }
-    return doiObj;
-  }
-
-  render() {
-    const container = new ColumnComponent();
-    container.add(this.pager);
-    const controlRow = new RowComponent();
-    controlRow.add(this.saveButton);
-    controlRow.add(this.resumeButton);
-    controlRow.add(this.downloadButton);
-    controlRow.add(this.uploadButton);
-    container.add(controlRow);
-    return container.html;
-  }
-
-  get object() {
-    const doiObj = { "declaracoes": [] };
-    for (const act of this.acts) {
-      for (const imovel of act.imoveis) {
-        doiObj.declaracoes.push(act.generateDoi(imovel));
-      }
-    }
-    return doiObj;
-  }
-
-  save() { saveObject(this.object,"draftDoi"); }
-  resume() { loadObject("draftDoi"); }
-  download() { downloadObject(this.object,"doi.json"); }
-  upload() { this.load(readJson("doi.json").declaracoes); }
-
-  init() {
-    document.getElementById("app").appendChild(this.view);
-  }
-}
-
-// ENTRYPOINT
-
-const doimaker = new App();
-//doimaker.init();
 
