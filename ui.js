@@ -193,16 +193,17 @@ class MenuInput extends UIComponent {
     this.html = document.createElement("select");
     this.html.classList.add("InputMenu");
     const voidOption = document.createElement("option");
-    voidOption.value = 0;
+    voidOption.value = "0";
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
   }
   get value() { return this.html.value; }
   add(code, title) {
     if (code && title) {
-      this.options[code] = document.createElement("option");
+      const option = document.createElement("option");
       option.value = code;
       option.textContent = title;
+      this.options[code]=option;
       this.html.appendChild(option);
     }
     else throw new Error("Invalid new option.");
@@ -231,7 +232,7 @@ class ControlButton extends UIComponent {
   constructor(text) {
     super();
     this.html.setAttribute("type", "button");
-    this.html.textContent = text ?? "Button"
+    this.html.textContent = text ?? "Button";
   }
   setAction(actionFunction) {
     if (actionFunction instanceof Function) {
@@ -247,11 +248,13 @@ class Block extends UIComponent {
   constructor() {
     super();
     this.items = [];
+    this.last = -1;
   }
   add(newItem) {
-    if (newItem.ui) {
+    if (newItem?.ui) {
       this.items.push(newItem);
       this.html.appendChild(newItem.html);
+      this.last += 1;
     }
     else throw new Error("Invalid new entry.");
   }
@@ -260,6 +263,7 @@ class Block extends UIComponent {
       throw new Error("Invalid index.");
     this.html.removeChild(this.items[index].html);
     this.items.splice(index,1);
+    this.last -= 1;
   }
   indexOf(item) {
     const index = this.items.indexOf(item);
@@ -272,7 +276,6 @@ class Block extends UIComponent {
 class Row extends Block {
   static tag = "div"; // each row takes up the whole width
   static className = "Row";
-  constructor(id) { super(id); }
   add(newItem) {
     super.add(newItem);
     newItem.html.style.display = "inline";
@@ -282,7 +285,6 @@ class Row extends Block {
 class Form extends Block {
   static tag = "div";
   static className = "Form";
-  constructor(id) { super(id); }
   add(newItem) {
     super.add(newItem);
     newItem.html.style.display = "block";
@@ -290,42 +292,68 @@ class Form extends Block {
 }
 
 class DualPane extends UIComponent {
-  // TODO...
+  static tag = "div";
+  static className = "DualPane";
+  constructor(left, right) {
+    super();
+    if (left && right) { // Optional
+      this.setPane(left,"left");
+      this.html.appendChild(left.html);
+      this.setPane(right,"right");
+      this.html.appendChild(right.html);
+    }
+  }
+  set left(pane) { setLeft(pane); }
+  set right(pane) { setRight(pane); }
+  setPane(pane,side) {
+    if (pane == null || !pane.ui)
+      throw new Error("Invalid pane.");
+    this[side]=pane;
+  }
+  setLeft(pane) {
+    this.setPane(pane,'left');
+    this.html.replaceChild(pane.html, this.html.firstChild);
+  }
+  setRight(pane) {
+    this.setPane(pane,'right');
+    this.html.replaceChild(pane.html, this.html.lastChild);
+  }
 }
 
 class ListEntry extends Row {
-  constructor(id) {
-    super(id);
-    this.line = null;
+  static className = "ListEntry";
+  constructor(line) {
+    super();
+    if (line == null || !line.ui)
+      throw new Error("Invalid line.");
+    this.line = line;
+    this.add(line);
     this.delBtn = new ControlButton('-');
     // delete button action must be set by parent
-  }
-  setLine(line) {
-    if (line.ui) {
-      this.html.innerHTML = "";
-      this.line = line;
-      this.add(line);
-      this.add(this.delBtn);
-    }
-    else throw new Error("Invalid line content.");
+    this.add(this.delBtn);
   }
 }
 
-class EditableList extends Block {
-  static tag = "div";
-  static className = "List";
+class TitledBlock extends Block {
+  static className = "TitledBlock";
+  constructor(title) {
+    super();
+    this.titleLine = new Row();
+    this.titleLine.html.classList.add("BlockTitle");
+    this.title = new TextualElement(title ?? "[title]");
+    this.titleLine.add(this.title);
+    this.add(this.titleLine);
+  }
+}
+
+class EditableList extends TitledBlock {
+  static className = "EditableList";
   constructor(title) {
     super(title); 
-    this.header = new Row();
-    this.header.html.classList.add("ListHeader");
-    this.title = new TextualElement(title ?? "List");
-    this.header.add(this.title);
     this.addBtn = new ControlButton('+');
-    this.header.add(this.addBtn);
     // addBtn action set by parent
-    this.html.appendChild(this.header); // beware...
-    this.current = null;
-    this.last = -1;
+    this.titleLine.add(this.addBtn);
+    this.current = -1;
   }
   reset() {
     this.items.forEach((item)=>item.unpick());
@@ -333,51 +361,56 @@ class EditableList extends Block {
   select(index) {
     if (index == null || index<0 || index>this.last)
       throw new Error("Invalid index.");
+    if (this.current >= 0)
+      this.items[this.current].unpick();
     this.items[index].pick();
-    this.items[this.current].unpick();
     this.current = index;
   }
   add(newEntry) {
-    if (newEntry instanceof ListEntry) {
+    if (newEntry !== null && newEntry instanceof ListEntry) {
       super.add(newEntry);
-      const index = this.items.length - 1;
       newEntry.delBtn.setAction(() => this.removeItem(newEntry));
+      const index = this.last;
       newEntry.line.html.addEventListener("click",
-        this.select(index));
+        () => this.select(index));
     }
     else throw new Error("Invalid list entry.")
+  }
+  remove(index) {
+    super.remove(index);
+    this.current = -1;
+    this.reset();
   }
 }
 
 class PagerPane extends Block {
-  static tag = "div";
   static className = "Pager";
-  constructor(id) {
-    super(id);
-    this.current = null
-    this.last = -1;
+  constructor() {
+    super();
+    this.current = -1;
   }
   select(index) {
     if (index == null || index<0 || index>this.last)
       throw new Error("Invalid index.");
-    this.items[this.current].hide();
+    // TODO: apparently I need to validate current below
+    this.items[this.current].hide(); 
     this.items[index].show();
     this.current = index;
   }
   add(newPage) {
-    if (newItem.ui) {
-      this.items.push(newItem);
-      this.last += 1;
-      newItem.hide();
-      this.html.appendChild(newItem.html);
-    }
-    else throw new Error("Invalid new page.");
+    super.add(newItem);
+    newItem.hide();
   }
   remove(index) {
     super.remove(index);
-    this.last = this.items.length - 1;
-    if (this.current === index && this.current > 0)
-      this.select(this.current-=1);
+    if (index === this.current) {
+      // list empty
+      if (this.last < 0) this.current = -1;
+      // list not empty, removed first
+      else if (index === 0) this.select(0); 
+      // list not empty, removed non-first
+      else this.select(index-1);
+    }
   }
   toFirst() { this.select(0); }
   toLast() { this.select(this.last); }
@@ -392,34 +425,41 @@ class PagerPane extends Block {
 }
 
 class PagerNav extends EditableList {
-  static tag = "div";
   static className = "PagerNav"
-  constructor(id) {
-    super(id);
+  constructor(title) {
+    super(title);
     this.pane = new PagerPane();
+    this.pageCounter = 0;
+  }
+  add(page) {
+    this.pane.add(page);
+    const idLine = new TextualElement(++this.pageCounter);
+    const entry = new ListEntry(idLine);
+//  entry.delBtn.setAction(() => this.remove(this.pageCounter-1));
+    super.add(entry);
+  }
+  remove(index) {
+    super.remove(index);
+    this.pane.remove(index);
+    this.pageCounter-=1;
   }
 }
 
-class Pager extends UIComponent {
-  static tag = "div";
+class Pager extends DualPane {
   static className = "Pager";
-  constructor(id) {
-    super(id);
-    this.nav = new PagerNav();
+  constructor(title) {
+    super();
+    this.nav = new PagerNav(title);
     // nav.addBtn action set by parent
-    this.html.appendChild(this.nav.html);
-    this.pager = new PagerPane();
-    this.html.appendChild(this.pager.html);
+    this.left = this.nav;
+    this.right = this.nav.pane;
   }
   addPage(newPage) {
-    if (newPage.ui) {
-      const newPage = this.generate();
-      this.pager.add(newPage);
-    }
+    if (newPage?.ui) this.nav.add(newPage);
     else throw new Error("Invalid new page.");
   }
-  deleteCurrent() {
-    this.pager.remove(this.pager.current);
+  removeCurrent() {
+    this.nav.remove(this.nav.current);
   }
 }
 
