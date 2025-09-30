@@ -163,11 +163,11 @@ class DateInput extends InputElement {
   static type = "date";
   static className = "DateInput";
   static isValid = (newInput) => {
-    return (newInput !== null
+    return (newInput != null
       && typeof newInput === "string"
       && (newInput === ""
-        || !isNaN(Date.parse(newInput))
-      );
+        || !isNaN(Date.parse(newInput)))
+    );
   };
   constructor() {
     super("");
@@ -199,7 +199,7 @@ class MenuInput extends UIComponent {
   }
   get value() { return this.html.value; }
   add(code, title) {
-    if (code && title) {
+    if (code != null && title != null) {
       const option = document.createElement("option");
       option.value = code;
       option.textContent = title;
@@ -209,6 +209,8 @@ class MenuInput extends UIComponent {
     else throw new Error("Invalid new option.");
   }
   remove(code) {
+    if (this.options[code] == null)
+      throw new Error("Option does not exist.");
     this.html.removeChild(this.options[code]);
     delete this.options[code];
   }
@@ -294,17 +296,15 @@ class Form extends Block {
 class DualPane extends UIComponent {
   static tag = "div";
   static className = "DualPane";
-  constructor(left, right) {
+  constructor() {
     super();
-    if (left && right) { // Optional
-      this.setPane(left,"left");
-      this.html.appendChild(left.html);
-      this.setPane(right,"right");
-      this.html.appendChild(right.html);
-    }
+    const left = new Block();
+    this.setPane(left,"left");
+    this.html.appendChild(left.html);
+    const right = new Block();
+    this.setPane(right,"right");
+    this.html.appendChild(right.html);
   }
-  set left(pane) { setLeft(pane); }
-  set right(pane) { setRight(pane); }
   setPane(pane,side) {
     if (pane == null || !pane.ui)
       throw new Error("Invalid pane.");
@@ -367,12 +367,11 @@ class EditableList extends TitledBlock {
     this.current = index;
   }
   add(newEntry) {
-    if (newEntry !== null && newEntry instanceof ListEntry) {
+    if (newEntry != null && newEntry instanceof ListEntry) {
       super.add(newEntry);
       newEntry.delBtn.setAction(() => this.removeItem(newEntry));
-      const index = this.last;
       newEntry.line.html.addEventListener("click",
-        () => this.select(index));
+        () => this.select(this.items.indexOf(newEntry)));
     }
     else throw new Error("Invalid list entry.")
   }
@@ -390,20 +389,22 @@ class PagerPane extends Block {
     this.current = -1;
   }
   select(index) {
+    if (this.last < 0) return;
     if (index == null || index<0 || index>this.last)
       throw new Error("Invalid index.");
-    // TODO: apparently I need to validate current below
-    this.items[this.current].hide(); 
+    if (this.current >= 0)
+      this.items[this.current].hide(); 
     this.items[index].show();
     this.current = index;
   }
   add(newPage) {
-    super.add(newItem);
-    newItem.hide();
+    super.add(newPage);
+    newPage.hide();
   }
   remove(index) {
     super.remove(index);
-    if (index === this.current) {
+    if (index < this.current) this.current -= 1;
+    else if (index === this.current) {
       // list empty
       if (this.last < 0) this.current = -1;
       // list not empty, removed first
@@ -451,8 +452,8 @@ class Pager extends DualPane {
     super();
     this.nav = new PagerNav(title);
     // nav.addBtn action set by parent
-    this.left = this.nav;
-    this.right = this.nav.pane;
+    this.setLeft(this.nav);
+    this.setRight(this.nav.pane);
   }
   addPage(newPage) {
     if (newPage?.ui) this.nav.add(newPage);
