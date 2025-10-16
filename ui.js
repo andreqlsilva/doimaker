@@ -12,7 +12,7 @@ function loadObject(key) {
   const item = localStorage.getItem(key);
   try {
     if (!item) throw new Error(`No object with key ${key}.`)
-    const obj = JSON.parse(localStorage.getItem(key));
+    const obj = JSON.parse(item);
     return obj;
   } catch (error) {
     throw(error);
@@ -22,7 +22,7 @@ function loadObject(key) {
 function downloadObject(obj,filename) {
   const content = JSON.stringify(obj,null,2);
   const file = new Blob([content], {type:'text/plain'});
-  url = URL.createObjectURL(file);
+  const url = URL.createObjectURL(file);
 
   const link = document.createElement("a");
   link.href = url;
@@ -64,14 +64,13 @@ class UIComponent { // extend only
 class DisplayElement extends UIComponent { // also extend only
   static tag = "p";
   static className = "DisplayElement";
-  #title;
   constructor(title) {
     super();
     this.title = title;
   }
-  get title() { return this.#title; }
+  get title() { return this._title; }
   set title(newTitle) {
-    this.#title = newTitle ?? "[title]";
+    this._title = newTitle ?? "[title]";
   }
 }
 
@@ -80,7 +79,11 @@ class TextualElement extends DisplayElement {
   static className = "TextualElement";
   constructor(title) {
     super(title);
-    this.html.textContent = this.title;
+    this.html.textContent = this.title; 
+  }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+    this.html.textContent = this._title;
   }
 }
 
@@ -175,11 +178,15 @@ class DateInput extends InputElement {
 }
 
 class CheckboxInput extends UIComponent {
+  static tag = "input";
+  static className = "CheckboxInput";
   constructor() {
     super();
-    this.html = document.createElement("input");
     this.html.setAttribute("type", "checkbox");
-    this.html.classList.add("CheckboxInput");
+  }
+  set value(newValue) {
+    if (typeof newValue === "boolean")
+      this.html.checked = newValue;
   }
   get value() {
     return this.html.checked;
@@ -187,11 +194,11 @@ class CheckboxInput extends UIComponent {
 }
 
 class MenuInput extends UIComponent {
+  static tag = "select";
+  static className = "MenuInput";
   constructor() {
     super();
     this.options = {};
-    this.html = document.createElement("select");
-    this.html.classList.add("InputMenu");
     const voidOption = document.createElement("option");
     voidOption.value = "0";
     voidOption.textContent = "";
@@ -272,7 +279,7 @@ class Block extends UIComponent {
     if (index === -1) throw new Error("Item not found.");
     return index;
   }
-  removeItem(item) { this.remove(this.items.indexOf(item)); }
+  removeItem(item) { this.remove(this.indexOf(item)); }
 }
 
 class Row extends Block {
@@ -371,7 +378,7 @@ class EditableList extends TitledBlock {
       super.add(newEntry);
       newEntry.delBtn.setAction(() => this.removeItem(newEntry));
       newEntry.line.html.addEventListener("click",
-        () => this.select(this.items.indexOf(newEntry)));
+        () => this.select(this.indexOf(newEntry)));
     }
     else throw new Error("Invalid list entry.")
   }
@@ -432,16 +439,23 @@ class PagerNav extends EditableList {
     this.pane = new PagerPane();
     this.pageCounter = 0;
   }
+  select(index) {
+    if (index === 0) return;
+    super.select(index);
+    this.pane.select(index - 1);
+  }
   add(page) {
     this.pane.add(page);
     const idLine = new TextualElement(++this.pageCounter);
     const entry = new ListEntry(idLine);
-//  entry.delBtn.setAction(() => this.remove(this.pageCounter-1));
     super.add(entry);
   }
   remove(index) {
     super.remove(index);
-    this.pane.remove(index);
+    this.items.slice(1).forEach(
+      (entry, i) => entry.line.html.textContent = i + 1
+    );
+    this.pane.remove(index-1); // indexing mismatch due to header
     this.pageCounter-=1;
   }
 }

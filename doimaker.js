@@ -12,7 +12,7 @@ function loadObject(key) {
   const item = localStorage.getItem(key);
   try {
     if (!item) throw new Error(`No object with key ${key}.`)
-    const obj = JSON.parse(localStorage.getItem(key));
+    const obj = JSON.parse(item);
     return obj;
   } catch (error) {
     throw(error);
@@ -22,7 +22,7 @@ function loadObject(key) {
 function downloadObject(obj,filename) {
   const content = JSON.stringify(obj,null,2);
   const file = new Blob([content], {type:'text/plain'});
-  url = URL.createObjectURL(file);
+  const url = URL.createObjectURL(file);
 
   const link = document.createElement("a");
   link.href = url;
@@ -30,7 +30,7 @@ function downloadObject(obj,filename) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function readJson(fileobj) {
@@ -45,387 +45,439 @@ async function readJson(fileobj) {
 
 // FRONTEND LIBRARY 
 
-class UIElement { // extend only
-  constructor() { this.ui = true; }
+class UIComponent { // extend only
+  static tag = "p";
+  static className = "UIComponent";
+  constructor() {
+    this.ui = true;
+    this.html = document.createElement(this.constructor.tag)
+    this.html.classList.add(this.constructor.className);
+  }
+  show() { this.html.hidden = false; }
+  hide() { this.html.hidden = true; }
+  toggle() { this.html.hidden = !this.html.hidden; }
+  pick() { this.html.classList.add("picked"); }
+  unpick() { this.html.classList.remove("picked"); }
+  showOn(condition) {
+    //TODO
+  }
+  setId(id) { if (id) this.html.setAttribute("id",id); }
 }
 
-class TextualElement extends UIElement { // extend only
-  static allowedTags = [
-    'p', 'label', 'span',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
-  ];
-  constructor(tag, text) {
+class DisplayElement extends UIComponent { // also extend only
+  static tag = "p";
+  static className = "DisplayElement";
+  constructor(title) {
     super();
-    if (TextualElement.allowedTags.includes(tag))
-      this.html = document.createElement(tag);
-    else throw new Error("Invalid tag.");
-    this.setText(text);
+    this.title = title;
   }
-  setText(newText) {
-    if (typeof newText === "string")
-      this.html.textContent = newText;
-    else throw new Error("Invalid text.");
+  get title() { return this._title; }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
   }
 }
 
-class TextElement extends TextualElement {
-  constructor(text) {
-    super('p',text);
-    this.html.setAttribute("class", "TextElement");
+class TextualElement extends DisplayElement {
+  static tag = "p";
+  static className = "TextualElement";
+  constructor(title) {
+    super(title);
+    this.html.textContent = this.title; 
+  }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+    this.html.textContent = this._title;
   }
 }
 
 class LabelElement extends TextualElement {
-  constructor(text) {
-    super('label',text);
-    this.html.setAttribute("class", "TextElement");
-  }
+  static tag = "label";
+  static className = "LabelElement";
 }
 
-class HeaderElement extends TextualElement {
-  static allowedTags = ['h1','h2','h3','h4','h5','h6'];
-  constructor(text,size=1) {
-    if (size<1 || size>6) throw new Error("Invalid header.");
-    super(HeaderElement.allowedTags[size-1],text);
-    this.html.setAttribute("class", "HeaderElement");
-  }
+class HElement extends TextualElement { // extend-only
+  static className = "HeaderElement";
 }
 
-class InputElement extends UIElement {
+class H1Element extends HElement { 
+  static tag = "h1";
+}
+
+class H2Element extends HElement {
+  static tag = "h2";
+}
+
+class H3Element extends HElement {
+  static tag = "h3";
+}
+
+class InputElement extends UIComponent {
+  static tag = "input";
+  static type = "text";
+  static className = "InputElement";
+  static isValid = (newInput) => {
+    return (newInput != null);
+  }
+  #defaultValue;
   constructor(defaultValue) {
     super();
-    this.html = document.createElement("input");
-    this.defaultValue = defaultValue ?? null;
-    this.reset();
+    this.html.setAttribute("type", this.constructor.type);
+    this.defaultValue = defaultValue;
+    this.value = defaultValue;
   }
   get value() { return this.html.value; }
+  set value(newValue) {
+    if (this.constructor.isValid(newValue))
+      this.html.value = newValue;
+    else throw new Error("Invalid value.");
+  }
+  get defaultValue() { return this.#defaultValue; }
   set defaultValue(newDefault) {
-    this.defaultValue = newDefault;
+    if (this.constructor.isValid(newDefault))
+      this.#defaultValue = newDefault;
+    else throw new Error("Invalid default.");
   }
   reset() { this.html.value = this.defaultValue; }
+  isValid() { return this.constructor.isValid(this.value); }
 }
 
 class TextInput extends InputElement { 
+  static type = "text";
+  static className = "TextInput";
+  static isValid = (newInput) => {
+    return (typeof newInput === "string");
+  };
   constructor(defaultText) {
     super(defaultText);
-    this.html.setAttribute("type", "text");
-    this.html.setAttribute("class", "TextInput");
-/*    this.sizer = document.createElement("span");
-    this.sizer.setAttribute("class", "TextInputSizer");
-    this.sizer.setAttribute("contenteditable", "true");
-    document.body.appendChild(this.sizer);
-    this.html.addEventListener("input", () => {
-      this.sizer.textContent = this.html.value+" ";
-      console.log(this.sizer.offsetWidth + ': '
-        + this.sizer.textContent);
-      this.html.style.width = this.sizer.offsetWidth + 'px';
-    });*/
-  }
-  set value(newValue) {
-    if (typeof newValue === "string") this.html.value = newValue;
-    else throw new Error("Invalid string.");
   }
 }
 
 class NumberInput extends InputElement {
+  static type = "number";
+  static className = "NumberInput";
+  static isValid = (newInput) => {
+    if (newInput == null || newInput === "") return false;
+    const n = Number(newInput);
+    return (Number.isFinite(n))
+  };
   constructor(defaultValue) {
-    super(defaultValue);
-    this.html.setAttribute("type", "number");
-    this.html.setAttribute("class", "NumberInput");
-  }
-  set value(newValue) {
-    if (typeof newValue === "number") this.html.value = newValue;
-    else throw new Error("Invalid number.");
+    super(defaultValue ?? 0);
   }
 }
 
 class DateInput extends InputElement {
+  static type = "date";
+  static className = "DateInput";
+  static isValid = (newInput) => {
+    return (newInput != null
+      && typeof newInput === "string"
+      && (newInput === ""
+        || !isNaN(Date.parse(newInput)))
+    );
+  };
   constructor() {
     super("");
-    this.html.setAttribute("type","date");
-    this.html.setAttribute("class","DateInput");
-  }
-  set value(newValue) {
-    if (typeof newValue === "string"
-      && !isNaN(Date.parse(newValue))) {
-      this.html.value = newValue;
-    }
-    else throw new Error("Invalid date.")
   }
 }
 
-class CheckboxInput extends UIElement {
+class CheckboxInput extends UIComponent {
+  static tag = "input";
+  static className = "CheckboxInput";
   constructor() {
     super();
-    this.html = document.createElement("input");
     this.html.setAttribute("type", "checkbox");
-    this.html.setAttribute("class", "CheckboxInput");
+  }
+  set value(newValue) {
+    if (typeof newValue === "boolean")
+      this.html.checked = newValue;
   }
   get value() {
     return this.html.checked;
   }
 }
 
-class MenuInput extends UIElement {
+class MenuInput extends UIComponent {
+  static tag = "select";
+  static className = "MenuInput";
   constructor() {
     super();
     this.options = {};
-    this.html = document.createElement("select");
-    this.html.setAttribute("class", "InputMenu");
     const voidOption = document.createElement("option");
-    voidOption.value = 0;
+    voidOption.value = "0";
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
   }
+  get value() { return this.html.value; }
   add(code, title) {
-    if (code && title) {
-      this.options[code] = title;
+    if (code != null && title != null) {
       const option = document.createElement("option");
       option.value = code;
       option.textContent = title;
+      this.options[code]=option;
       this.html.appendChild(option);
     }
     else throw new Error("Invalid new option.");
   }
   remove(code) {
+    if (this.options[code] == null)
+      throw new Error("Option does not exist.");
+    this.html.removeChild(this.options[code]);
     delete this.options[code];
-    // TODO: find child of this.html with code and remove it
   }
 }
 
-class FilePicker extends UIElement {
+class FilePicker extends UIComponent {
+  static tag = "input";
+  static className = "FilePicker";
   constructor() {
     super();
-    this.html = document.createElement("input");
     this.html.setAttribute("type", "file");
-    this.html.setAttribute("class", "FilePicker");
   }
   get file() {
     return this.html.files[0];
   }
 }
 
-class ControlButton extends UIElement {
+class ControlButton extends UIComponent {
+  static tag = "button";
+  static className = "ControlButton";
   constructor(text) {
     super();
-    this.html = document.createElement("button");
     this.html.setAttribute("type", "button");
-    this.html.setAttribute("class", "ControlButton");
-    this.html.textContent = text ?? "Button"
+    this.html.textContent = text ?? "Button";
   }
   setAction(actionFunction) {
     if (actionFunction instanceof Function) {
       this.html.addEventListener("click", actionFunction);
     }
   }
-  trigger() { this.html.dispatchEvent(new Event('click')); }
+  trigger() { this.html.click(); }
 }
 
-class UIComponent extends UIElement {
-  constructor(className) {
+class Block extends UIComponent {
+  static tag = "div";
+  static className = "Block";
+  constructor() {
     super();
-    this.name = null;
-    this.value = null;
-    this.items = null;
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", className ?? "UIComponent");
-  }
-  validate(content) {
-    if (!content?.ui
-      || (content?.items == null
-        && (content?.name == null || content?.value == null)
-      throw new Error("Invalid content.");
-    return true;
-  }
-}
-
-// UI COMPONENTS
-// Every view must be one a component,
-// as they return names and values
-// which interface with the models
-// *Conventions:
-// => Everyone provides .name, .value, .items
-// => Singletons have non-null .name, .value
-// => Compounds have non-null .items[]
-// => .items have non-null .items[] OR .name, .value
-
-class ColumnComponent extends UIComponent { 
-  constructor(className) {
-    super(className ?? "ColumnComponent");
     this.items = [];
+    this.last = -1;
   }
   add(newItem) {
-    if (newItem instanceof UIComponent) {
-      newItem.html.style.display = "block";
+    if (newItem?.ui) {
       this.items.push(newItem);
       this.html.appendChild(newItem.html);
+      this.last += 1;
     }
+    else throw new Error("Invalid new entry.");
   }
-  remove(item) {
-    if (!this.items.includes(item))
-      throw new Error("Item not found");
-    this.items.splice(this.items.indexOf(item),1);
-    this.html.removeChild(item.html);
+  remove(index) {
+    if (index == null || index<0 || index>this.last)
+      throw new Error("Invalid index.");
+    this.html.removeChild(this.items[index].html);
+    this.items.splice(index,1);
+    this.last -= 1;
   }
+  indexOf(item) {
+    const index = this.items.indexOf(item);
+    if (index === -1) throw new Error("Item not found.");
+    return index;
+  }
+  removeItem(item) { this.remove(this.indexOf(item)); }
 }
 
-class RowComponent extends UIComponent { 
-  constructor(className) {
-    super(className ?? "RowComponent");
-    this.items = [];
-  }
+class Row extends Block {
+  static tag = "div"; // each row takes up the whole width
+  static className = "Row";
   add(newItem) {
-    if (newItem instanceof UIComponent)) {
-      newItem.html.style.display = "inline";
-      this.items.push(newItem);
-      this.html.appendChild(newItem.html);
-    }
-  }
-  remove(item) {
-    if (!this.items.includes(item))
-      throw new Error("Item not found");
-    this.items.splice(this.items.indexOf(item),1);
-    this.html.removeChild(item.html);
+    super.add(newItem);
+    newItem.html.style.display = "inline";
   }
 }
 
-class EditableList extends ColumnComponent {
-  constructor() { super("ListComponent"); }
-  addItem(item) {
-    if (item instanceof UIComponent) {
-      const element = new RowComponent("ListEntry");
-      element.add(item);
-      const delButton = new ControlButton('x');
-
-      // TODO: What?
-      delButton.setAction(() => this.remove(element));
-
-      element.add(delButton);
-      this.items.push(element);
-      this.html.appendChild(element.html);
-    }
-  }
-}
-
-class LabeledInput extends UIComponent {
-  constructor(name,labelElement,inputElement) {
-    super("LabeledInput");
-    if (typeof name === "string") this.name = name;
-    else throw new Error("Invalid name.");
-    this.name = name;
-    if (labelElement instanceof LabelElement) {
-      this.label = labelElement;
-      this.html.appendChild(labelElement.html);
-    }
-    else throw new Error("Invalid label element.");
-    if (inputElement instanceof InputElement) {
-      this.input = inputElement;
-      this.html.appendChild(inputElement.html);
-    }
-    else throw new Error("Invalid input element.");
+class Form extends Block {
+  static tag = "div";
+  static className = "Form";
+  add(newItem) {
+    super.add(newItem);
+    newItem.html.style.display = "block";
   }
 }
 
 class DualPane extends UIComponent {
+  static tag = "div";
+  static className = "DualPane";
   constructor() {
-    super("DualPane");
-    this.left = document.createElement("div");
-    this.left.setAttribute("class","LeftPane");
-    this.right = document.createElement("div");
-    this.right.setAttribute("class","RightPane");
-    this.container = document.createElement("div");
-    this.container.setAttribute("class","DualPaneContainer");
-    this.html = this.container.html;
+    super();
+    const left = new Block();
+    this.setPane(left,"left");
+    this.html.appendChild(left.html);
+    const right = new Block();
+    this.setPane(right,"right");
+    this.html.appendChild(right.html);
   }
-  setLeft(component) {
-    if (this.validate(component)) {
-      this.items[0] = component;
-      component.html.style.display = "block";
-      this.left.appendChild(component.html);
-    }
+  setPane(pane,side) {
+    if (pane == null || !pane.ui)
+      throw new Error("Invalid pane.");
+    this[side]=pane;
   }
-  setRight(component) {
-    if (this.validate(component)) {
-      this.items[1] = component;
-      component.html.style.display = "block";
-      this.right.appendChild(component.html);
-    }
+  setLeft(pane) {
+    this.setPane(pane,'left');
+    this.html.replaceChild(pane.html, this.html.firstChild);
+  }
+  setRight(pane) {
+    this.setPane(pane,'right');
+    this.html.replaceChild(pane.html, this.html.lastChild);
   }
 }
 
-class PagerComponent {
-  constructor() {
-    this.current = 0;
-    this.pages = [];
+class ListEntry extends Row {
+  static className = "ListEntry";
+  constructor(line) {
+    super();
+    if (line == null || !line.ui)
+      throw new Error("Invalid line.");
+    this.line = line;
+    this.add(line);
+    this.delBtn = new ControlButton('-');
+    // delete button action must be set by parent
+    this.add(this.delBtn);
+  }
+}
 
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", "PagerComponent");
-    this.pageArea = document.createElement("div");
-    this.pageArea.setAttribute("class", "PageArea");
-    this.html.appendChild(this.pageArea);
+class TitledBlock extends Block {
+  static className = "TitledBlock";
+  constructor(title) {
+    super();
+    this.titleLine = new Row();
+    this.titleLine.html.classList.add("BlockTitle");
+    this.title = new TextualElement(title ?? "[title]");
+    this.titleLine.add(this.title);
+    this.add(this.titleLine);
+  }
+}
 
-    this.controls = new RowComponent();
-    const newButton = new ControlButton("+");
-    const delButton = new ControlButton("-");
-    const prevButton = new ControlButton("<");
-    const nextButton = new ControlButton(">");
-    newButton.setAction(() => this.new());
-    delButton.setAction(() => this.del());
-    prevButton.setAction(() => this.prev());
-    nextButton.setAction(() => this.next());
-    this.controls.add(newButton.html);
-    this.controls.add(delButton.html);
-    this.controls.add(prevButton.html);
-    this.controls.add(nextButton.html);
-    this.html.appendChild(this.controls.html);
+class EditableList extends TitledBlock {
+  static className = "EditableList";
+  constructor(title) {
+    super(title); 
+    this.addBtn = new ControlButton('+');
+    // addBtn action set by parent
+    this.titleLine.add(this.addBtn);
+    this.current = -1;
   }
-  add(newPage) {
-    let htmlPage = newPage;
-    if (newPage.html) htmlPage = newPage.html;
-    if (htmlPage instanceof Node) {
-      this.pages.push(htmlPage);
-      this.pageArea.appendChild(htmlPage);
-      this.current = this.pages.length-1;
-      this.select(this.current);
-    }
-    else throw new Error("Invalid new page.");
+  reset() {
+    this.items.forEach((item)=>item.unpick());
   }
-  remove(index) {
-    if (this.pages.length < 2) return;
-    if (this.pages.length > index) {
-      const deleted = this.pages[index];
-      this.pages.splice(index,1);
-      if (this.current == index) 
-        this.select((this.current ? this.current : 1) -1);
-      this.pageArea.removeChild(deleted);
-    }
-    else throw new Error("Invalid page index.");
-  }
-  del() { this.remove(this.current); }
   select(index) {
-    if (index < 0 || index >= this.pages.length)
-      throw new Error("Invalid page index.");
-    for (const p in this.pages) {
-      if (p != index) {
-        this.pages[p].style.display = 'none';
-      }
-      else {
-        this.pages[p].style.display = 'block';
-      }
-    }
+    if (index == null || index<0 || index>this.last)
+      throw new Error("Invalid index.");
+    if (this.current >= 0)
+      this.items[this.current].unpick();
+    this.items[index].pick();
     this.current = index;
   }
-  prev() {
-    if (this.current > 0) {
-      this.current-=1;
-      this.select(this.current);
+  add(newEntry) {
+    if (newEntry != null && newEntry instanceof ListEntry) {
+      super.add(newEntry);
+      newEntry.delBtn.setAction(() => this.removeItem(newEntry));
+      newEntry.line.html.addEventListener("click",
+        () => this.select(this.indexOf(newEntry)));
+    }
+    else throw new Error("Invalid list entry.")
+  }
+  remove(index) {
+    super.remove(index);
+    this.current = -1;
+    this.reset();
+  }
+}
+
+class PagerPane extends Block {
+  static className = "Pager";
+  constructor() {
+    super();
+    this.current = -1;
+  }
+  select(index) {
+    if (this.last < 0) return;
+    if (index == null || index<0 || index>this.last)
+      throw new Error("Invalid index.");
+    if (this.current >= 0)
+      this.items[this.current].hide(); 
+    this.items[index].show();
+    this.current = index;
+  }
+  add(newPage) {
+    super.add(newPage);
+    newPage.hide();
+  }
+  remove(index) {
+    super.remove(index);
+    if (index < this.current) this.current -= 1;
+    else if (index === this.current) {
+      // list empty
+      if (this.last < 0) this.current = -1;
+      // list not empty, removed first
+      else if (index === 0) this.select(0); 
+      // list not empty, removed non-first
+      else this.select(index-1);
     }
   }
+  toFirst() { this.select(0); }
+  toLast() { this.select(this.last); }
   next() {
-    if (this.current+1 < this.pages.length) {
-      this.current+=1;
-      this.select(this.current);
-    }
+    if (this.current < this.last)
+      this.select(this.current+1);
+  }
+  prev() {
+    if (this.current > 0)
+      this.select(this.current-1);
+  }
+}
+
+class PagerNav extends EditableList {
+  static className = "PagerNav"
+  constructor(title) {
+    super(title);
+    this.pane = new PagerPane();
+    this.pageCounter = 0;
+  }
+  select(index) {
+    if (index === 0) return;
+    super.select(index);
+    this.pane.select(index - 1);
+  }
+  add(page) {
+    this.pane.add(page);
+    const idLine = new TextualElement(++this.pageCounter);
+    const entry = new ListEntry(idLine);
+    super.add(entry);
+  }
+  remove(index) {
+    super.remove(index);
+    this.items.slice(1).forEach(
+      (entry, i) => entry.line.html.textContent = i + 1
+    );
+    this.pane.remove(index-1); // indexing mismatch due to header
+    this.pageCounter-=1;
+  }
+}
+
+class Pager extends DualPane {
+  static className = "Pager";
+  constructor(title) {
+    super();
+    this.nav = new PagerNav(title);
+    // nav.addBtn action set by parent
+    this.setLeft(this.nav);
+    this.setRight(this.nav.pane);
+  }
+  addPage(newPage) {
+    if (newPage?.ui) this.nav.add(newPage);
+    else throw new Error("Invalid new page.");
+  }
+  removeCurrent() {
+    this.nav.remove(this.nav.current);
   }
 }
 
@@ -563,7 +615,7 @@ class DoiProp {
   }
 
   render() {
-    const container = new ColumnComponent();
+    const container = new Block();
     container.add(new LabelElement(this.label));
     let field;
     if (this.schema.oneOf) {
@@ -605,8 +657,8 @@ class DoiEntity {
   }
 
   render() {
-    const container = new ColumnComponent();
-    container.add(new HeaderElement(this.schemaName))
+    const container = new Block();
+    container.add(new H3Element(this.schemaName))
     for (const propName of Object.keys(this)) {
       if (this[propName] instanceof DoiProp) {
         container.add(this[propName].view);
@@ -649,26 +701,38 @@ class DoiEntity {
 }
 
 class RepList {
-  constructor() { this.list = new Set(); }
-  addRep(ni) {
-    if (CPF.validate(ni) || CNPJ.validate(ni)) {
-      this.list.add(ni);
-      return true;
+  constructor() {
+    this.inputs = [];
+    this.view = new EditableList("Representantes");
+    this.view.addBtn.setAction(() => {
+      const label = new LabelElement("CPF ou CNPJ: ");
+      const field = new TextInput("");
+      this.inputs.push(field);
+      const repLine = new Row();
+      repLine.add(label)
+      repline.add(field)
+      const newRep = new ListEntry(repLine)
+      newRep.delBtn.setAction (() =>
+        this.view.removeItem(newRep));
+      this.view.add(newRep);
+    });
+  }
+  get list() {
+    const representantes = [];
+    for (const rep of this.inputs) {
+      const ni = rep.value;
+      if (Subject.validate(ni))
+        representantes.push({"ni": ni});
     }
-    return false;
-  }
-  delRep(ni) {
-    this.list.delete(ni);
-  }
-
-  render() {
-    const container = new EditableList();
-
+    return representantes;
   }
 }
 
 class Subject extends DoiEntity {
   static entity = "Subject";
+  static validate = (ni) => {
+    return (CPF.validate(ni) || CNPJ.validate(ni));
+  }
   #representantes;
   constructor (position) {
     super(position,[
@@ -677,31 +741,17 @@ class Subject extends DoiEntity {
       "indicadorNaoConstaParticipacaoOperacao",
       "indicadorNiIdentificado"
     ]);
-    this.#representantes=new RepList();
+    this.#representantes = new RepList();
     this.view = this.render();
   }
 
   get representantes() {
-    return Array.from(this.#representantes);
-  }
-
-  addRepresentante(ni) {
-    this.#representantes.addRep(ni);
-  }
-
-  removeRepresentante(ni) {
-    this.#representantes.delRep(ni);
+    return this.#representantes.list;
   }
 
   render() {
     const container = super.render();
-    const repList = new ListComponent('Representantes');
-    const defaultRepLine = new RowComponent();
-    defaultRepLine.add(new LabelElement("CPF ou CNPJ: "));
-    defaultRepLine.add(new TextInput());
-    repList.setDefault(defaultRepLine.html);
-    this.repsview = repList;
-    container.add(repList);
+    container.add(this.#representantes.view);
     return container;
   }
 
@@ -730,33 +780,83 @@ class Adquirente extends Subject {
   constructor() { super("Adquirente"); }
 }
 
-class Operacao {
+class SubjectList {
   constructor() {
-    this.total=0;
+    this.list = [];
   }
-
-  addPerson(person,fraction) {
-    if (
-      person instanceof Subject
-      && typeof fraction === "number"
-      && !this[person.ni.value]
-      && fraction>0
-      && fraction<=100) {
-      this[person.ni.value]=fraction;
-      this.total+=fraction;
+  get view() { return this.render(); }
+  get list() {
+    const representantes = [];
+    for (const rep of this.inputs) {
+      const ni = rep.value;
+      if (Subject.validate(ni))
+        representantes.push({"ni": ni});
     }
+    return representantes;
   }
+  add(newSubject) {
+    // ...
+  }
+  remove(newSubject) {
+    // ...
+  }
+  render() {
+    // ...
+  }
+}
 
-  removePerson(ni) {
-    if (this[ni]) {
-      this.total-=this[ni];
-      delete this[ni];
+class Operacao {
+  constructor(title) {
+    this.inputs = {};
+    if (title == null) title = "Operação Imobiliária";
+    this.view = new EditableList(title);
+    this.view.addBtn.setAction(() => {
+      const label1 = new LabelElement("Participante: ");
+      const subject = new MenuInput();
+      // Menu items must be managed by parent
+      const label2 = new LabelElement("%: ");
+      const participation = new NumberInput(0);
+      this.inputs[subject] = participation;
+      const line = new Row();
+      line.add(label1); line.add(subject);
+      line.add(label2); line.add(participation);
+      const newOp = new ListEntry(line);
+      newOp.delBtn.setAction (() =>
+        this.view.removeItem(newRep));
+      this.view.add(newOp);
+    });
+  }
+  get total() {
+    const sum=0;
+    for (const subject of Object.keys(this.inputs)) {
+      sum+=this.inputs[subject].value;
     }
+    return sum;
   }
-
+  get list() {
+    const operacao = {};
+    for (const subject of Object.keys(this.inputs)) {
+      const choice = subject.value;
+      const fraction = this.inputs[subject].value;
+      if (this.validate(choice,fraction))
+        operacao[choice] = fraction;
+    }
+    return operacao;
+  }
+  validate(ni,fraction) {
+    if (Subject.validate(ni) &&
+        typeof fraction === "number"
+        fraction>0 && fraction<=100)
+      return true;
+    else return false;
+  }
   isValid() {
     return (this.total>=98 && this.total <=100);
   }
+}
+
+class MunicipioList {
+  //TODO (last)
 }
 
 class Imovel extends DoiEntity {
@@ -779,8 +879,8 @@ class Imovel extends DoiEntity {
       "tipoServico",
       "valorParteTransacionada"
     ]);
-    this.#alienacao = new Operacao();
-    this.#aquisicao = new Operacao();
+    this.#alienacao = new Operacao("Alienação");
+    this.#aquisicao = new Operacao("Aquisição");
     this.#outrosMunicipios = new Set();
   }
 
@@ -791,51 +891,34 @@ class Imovel extends DoiEntity {
   }
 
   setAlienante(alienanteObj,participacao) {
+    // TODO: remake
     if (this.#alienacao[alienanteObj.ni.value])
       this.#alienacao.removePerson(alienanteObj.ni.value);
     this.#alienacao.addPerson(alienanteObj,participacao)
   }
 
-  removeAlienante(ni) { this.#alienacao.removePerson(ni); }
+  removeAlienante(ni) {
+    // TODO: remake
+    this.#alienacao.removePerson(ni);
+  }
 
   setAdquirente(adquirenteObj,participacao) {
+    // TODO: remake
     if (this.#aquisicao[adquirenteObj.ni.value])
       this.#aquisicao.removePerson(adquirenteObj.ni.value);
     this.#aquisicao.addPerson(adquirenteObj,participacao)
   }
 
-  removeAdquirente(ni) { this.#aquisicao.removePerson(ni); }
+  removeAdquirente(ni) {
+    // TODO: remake
+    this.#aquisicao.removePerson(ni);
+  }
 
   render() {
     const container = super.render();
-    const alienList = new ListComponent('Alienação');
-    const defaultAlienLine = new RowComponent();
-    defaultAlienLine.add(new LabelElement("CPF ou CNPJ: "));
-    defaultAlienLine.add(new TextInput());
-    defaultAlienLine.add(new LabelElement("Participação: "));
-    defaultAlienLine.add(new NumberInput());
-    alienList.setDefault(defaultAlienLine.html);
-    this.aliensview = alienList;
-    container.add(alienList);
-
-    const adqList = new ListComponent('Aquisição');
-    const defaultAdqLine = new RowComponent();
-    defaultAdqLine.add(new LabelElement("CPF ou CNPJ: "));
-    defaultAdqLine.add(new TextInput());
-    defaultAdqLine.add(new LabelElement("Participação: "));
-    defaultAdqLine.add(new NumberInput());
-    adqList.setDefault(defaultAdqLine.html);
-    this.adqsview = adqList;
-    container.add(adqList);
-
-    const munList = new ListComponent('Outros municípios');
-    const defMunLine = new RowComponent();
-    defMunLine.add(new LabelElement("Município: "));
-    defMunLine.add(new TextInput());
-    munList.setDefault(defMunLine.html);
-    this.munsview = munList;
-    container.add(munList);
-
+    container.add(this.#aquisicao.view);
+    container.add(this.#alienacao.view);
+    //TODO: add outrosMunicipios
     return container;
   }
 
@@ -855,6 +938,10 @@ class Imovel extends DoiEntity {
     return (this.#alienacao.isValid()
       && this.#aquisicao.isValid());
   }
+}
+
+class ImovelList {
+  //TODO
 }
 
 class Ato extends DoiEntity {
@@ -1742,6 +1829,10 @@ const doiDefs=JSON.parse(doiJson);
 // CONTROLLER
 
 class App {
+
+}
+
+class OldApp {
   constructor() {
     this.saveButton = new ControlButton("Salvar");
     this.resumeButton = new ControlButton("Carregar");
