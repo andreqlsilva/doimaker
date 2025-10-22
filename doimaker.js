@@ -780,7 +780,7 @@ class Adquirente extends Subject {
   constructor() { super("Adquirente"); }
 }
 
-class SubjectList {
+class SubjectList { // TODO...
   constructor() {
     this.list = [];
   }
@@ -795,7 +795,7 @@ class SubjectList {
     return representantes;
   }
   add(newSubject) {
-    // ...
+    // TODO...
   }
   remove(newSubject) {
     // ...
@@ -864,54 +864,52 @@ class Imovel extends DoiEntity {
   #aquisicao;
   #outrosMunicipios;
   static entity = "Imovel";
-  constructor() {
+  constructor(ato) {
     super("Imovel",[
-      "dataLavraturaRegistroAverbacao",
-      "dataNegocioJuridico",
       "destinacao",
       "formaPagamento",
       "indicadorImovelPublicoUniao",
       "indicadorPagamentoDinheiro",
       "indicadorPermutaBens",
-      "tipoDeclaracao",
       "tipoOperacaoImobiliaria",
       "tipoParteTransacionada",
       "tipoServico",
       "valorParteTransacionada"
     ]);
+    this.ato = ato; // TODO: validate this
     this.#alienacao = new Operacao("Alienação");
     this.#aquisicao = new Operacao("Aquisição");
-    this.#outrosMunicipios = new Set();
+    this.#outrosMunicipios = new MunicipioList();
   }
 
+  get subjects() { returns this.ato.subjects; }
   get alienacao() { return this.#alienacao; }
   get aquisicao() { return this.#aquisicao; }
   get outrosMunicipios() {
     return Array.from(this.#outrosMunicipios);
   }
 
-  setAlienante(alienanteObj,participacao) {
-    // TODO: remake
-    if (this.#alienacao[alienanteObj.ni.value])
-      this.#alienacao.removePerson(alienanteObj.ni.value);
-    this.#alienacao.addPerson(alienanteObj,participacao)
+  get participantes(operacao) {
+    const parts = [];
+    const op = operacao.list;
+    for (const ni of Object.keys(op)) {
+      const subj = this.subjects.getSubjectByNi(ni);
+      const part = { "ni": ni, participacao: op[ni] }
+      for (const prop of Object.keys(subj))
+        if (subj[prop] instanceof DoiProp)
+          part[prop] = subj[prop]value;
+      parts.push(part);
+    }
+    return parts;
   }
 
-  removeAlienante(ni) {
-    // TODO: remake
-    this.#alienacao.removePerson(ni);
-  }
-
-  setAdquirente(adquirenteObj,participacao) {
-    // TODO: remake
-    if (this.#aquisicao[adquirenteObj.ni.value])
-      this.#aquisicao.removePerson(adquirenteObj.ni.value);
-    this.#aquisicao.addPerson(adquirenteObj,participacao)
-  }
-
-  removeAdquirente(ni) {
-    // TODO: remake
-    this.#aquisicao.removePerson(ni);
+  get doi() {
+    const doi = {};
+    for (const propName of Object.keys(doiDefs[this.schemaName]))
+      doi[propName] = this[propName].value;
+    doi.alienantes = this.participantes(this.alienacao);
+    doi.adquirentes = this.participantes(this.aquisicao);
+    return doi;
   }
 
   render() {
@@ -922,6 +920,7 @@ class Imovel extends DoiEntity {
     return container;
   }
 
+/*
   addMunicipio(codigoIbge) {
     if (typeof codigoIbge === "string"
       && /^\d{7}$/.test(codigoIbge))
@@ -933,7 +932,7 @@ class Imovel extends DoiEntity {
       && /^\d{7}$/.test(codigoIbge))
       this.#outrosMunicipios.delete(codigoIbge);
   }
-
+*/
   isConsistent() {
     return (this.#alienacao.isValid()
       && this.#aquisicao.isValid());
@@ -944,7 +943,7 @@ class ImovelList {
   //TODO
 }
 
-class Ato extends DoiEntity {
+class Ato extends DoiEntity { // TODO: use SubjectList
   #alienantes;
   #adquirentes;
   #imoveis;
@@ -956,16 +955,17 @@ class Ato extends DoiEntity {
       "tipoDeclaracao",
       "tipoServico",
     ]);
-    this.#alienantes = new Set();
-    this.#adquirentes = new Set();
-    this.#imoveis = new Set();
+    this.#alienantes = new SubjectList(); // TODO: chk signature
+    this.#adquirentes = new SubjectList(); // TODO: chk signature
+    this.#imoveis = new ImoveisList(); // TODO: chk signature
   }
 
+  // TODO: adapt to new List classes
   get alienantes() { return Array.from(this.#alienantes); };
   get adquirentes() { return Array.from(this.#adquirentes); };
   get imoveis() { return Array.from(this.#imoveis) };
 
-  render() {
+  render() { // TODO: !
     const container = super.render();
     const alienBox = new ListComponent('Alienantes');
     const alienDef = (new Alienante()).view;
@@ -981,10 +981,16 @@ class Ato extends DoiEntity {
     container.add(imovBox);
     return container;
   }
-  // TODO: implement render() which calls super.render(),
-  // then appends alienante, adquirente, imovel renders
-  // (Note: consider doing the same in those classes too)
 
+
+  json() {
+    const declaracoes = [];
+    const doiList = this.imoveis.list;
+    for (const imovel of doiList) declaracoes.push(imovel.doi);
+    const ato = { "declaracoes": declaracoes };
+    return JSON.stringify(ato);
+  }
+/*
   includeAlienante(alienanteObj) {
     if (alienanteObj instanceof Alienante 
       && alienanteObj.isValid()) {
@@ -1027,44 +1033,9 @@ class Ato extends DoiEntity {
   }
 
   removeImovel(imovelObj) { this.#imoveis.delete(imovelObj); }
-
-  // TODO: check if participating subjects do belong to act
+*/
+  // TODO: !
   isConsistent() { return true; }
-
-  generateDoi(imovel) {
-    const doiObj = {};
-    for (const prop in this) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = this[prop].value;
-      }
-    }
-    for (const prop in imovel) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = imovel[prop].value;
-      }
-    }
-    doiObj.alienantes=[];
-    for (const ni in imovel.alienacao) {
-      const alienante = { "participacao": imovel.alienacao[ni] };
-      const person = this.getAlienanteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          alienante[prop.name] = person[prop].value;
-      }
-      doiObj.alienantes.push(alienante);
-    }
-    doiObj.adquirentes=[];
-    for (const ni in imovel.aquisicao) {
-      const adquirente = { "participacao": imovel.aquisicao[ni] };
-      const person = this.getAdquirenteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          adquirente[prop] = person[prop].value;
-      }
-      doiObj.adquirentes.push(adquirente);
-    }
-    return doiObj;
-  }
 }
 
 // BEGIN SCHEMA
@@ -1829,7 +1800,7 @@ const doiDefs=JSON.parse(doiJson);
 // CONTROLLER
 
 class App {
-
+  // TODO...
 }
 
 class OldApp {
