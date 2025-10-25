@@ -780,36 +780,34 @@ class Adquirente extends Subject {
   constructor() { super("Adquirente"); }
 }
 
-class SubjectList { // TODO...
-  constructor() {
-    this.list = [];
+class SubjectList {
+  constructor(title) {
+    this.inputs = [];
+    let position;
+    if (title === "Alienantes") position = "Alienante";
+    else if (title === "Adquirentes") position = "Adquirente";
+    else throw new Error("Invalid position.");
+    this.view = new EditableList(title);
+    this.view.addBtn.setAction(() => {
+      // TODO: render a new subject with empty data
+      const newSubj = new Subject(position);
+    });
   }
   get view() { return this.render(); }
   get list() {
-    const representantes = [];
-    for (const rep of this.inputs) {
-      const ni = rep.value;
-      if (Subject.validate(ni))
-        representantes.push({"ni": ni});
+    const subjects = [];
+    for (const subj of this.inputs) {
+      // TODO: add valid inputs to subjects
     }
-    return representantes;
-  }
-  add(newSubject) {
-    // TODO...
-  }
-  remove(newSubject) {
-    // ...
-  }
-  render() {
-    // ...
+    return subjects;
   }
 }
 
 class Operacao {
   constructor(title) {
     this.inputs = {};
-    if (title == null) title = "Operação Imobiliária";
-    this.view = new EditableList(title);
+    const validTitle = title==null ? "Operação" : title;
+    this.view = new EditableList(validTitle);
     this.view.addBtn.setAction(() => {
       const label1 = new LabelElement("Participante: ");
       const subject = new MenuInput();
@@ -943,7 +941,7 @@ class ImovelList {
   //TODO
 }
 
-class Ato extends DoiEntity { // TODO: use SubjectList
+class Ato extends DoiEntity {
   #alienantes;
   #adquirentes;
   #imoveis;
@@ -955,15 +953,15 @@ class Ato extends DoiEntity { // TODO: use SubjectList
       "tipoDeclaracao",
       "tipoServico",
     ]);
-    this.#alienantes = new SubjectList(); // TODO: chk signature
-    this.#adquirentes = new SubjectList(); // TODO: chk signature
+    this.#alienantes = new SubjectList("Alienantes");
+    this.#adquirentes = new SubjectList("Adquirentes");
     this.#imoveis = new ImoveisList(); // TODO: chk signature
   }
 
   // TODO: adapt to new List classes
-  get alienantes() { return Array.from(this.#alienantes); };
-  get adquirentes() { return Array.from(this.#adquirentes); };
-  get imoveis() { return Array.from(this.#imoveis) };
+  get alienantes() { return this.#alienantes.list; };
+  get adquirentes() { return this.#adquirentes.list; };
+  get imoveis() { return this.#imoveis.list; };
 
   render() { // TODO: !
     const container = super.render();
