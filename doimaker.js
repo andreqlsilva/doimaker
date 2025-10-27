@@ -899,7 +899,7 @@ class TextInput extends InputElement {
     return (typeof newInput === "string");
   };
   constructor(defaultText) {
-    super(defaultText);
+    super(defaultText ?? "");
   }
 }
 
@@ -1099,7 +1099,7 @@ class TitledBlock extends Block {
     this.titleLine.html.classList.add("BlockTitle");
     this.title = new TextualElement(title ?? "[title]");
     this.titleLine.add(this.title);
-    this.add(this.titleLine);
+    this.html.prepend(this.titleLine.html);
   }
 }
 
@@ -1190,9 +1190,8 @@ class PagerNav extends EditableList {
     this.pageCounter = 0;
   }
   select(index) {
-    if (index === 0) return;
     super.select(index);
-    this.pane.select(index - 1);
+    this.pane.select(index);
   }
   add(page) {
     this.pane.add(page);
@@ -1202,10 +1201,10 @@ class PagerNav extends EditableList {
   }
   remove(index) {
     super.remove(index);
-    this.items.slice(1).forEach(
+    this.items.forEach(
       (entry, i) => entry.line.html.textContent = i + 1
     );
-    this.pane.remove(index-1); // indexing mismatch due to header
+    this.pane.remove(index);
     this.pageCounter-=1;
   }
 }
@@ -1371,7 +1370,9 @@ class DoiProp {
     let field;
     if (this.schema.oneOf) {
       field = new MenuInput();
-      for (const option of this.schema.oneOf) field.add(option);
+      for (const option of this.schema.oneOf) {
+        field.add(option.const, option.title);
+      }
       field.html.addEventListener("change",
         () => this.setValue(field.value));
     }
@@ -1404,9 +1405,9 @@ class DoiEntity {
     for (const propName of Object.keys(doiDefs[this.schemaName])) {
       this.forceProp(propName,null);
     }
-    this.view = this.render();
   }
 
+  get view() { return this.render(); }
   render() {
     const container = new Block();
     container.add(new H3Element(this.schemaName))
@@ -1465,7 +1466,7 @@ class RepList {
       const newRep = new ListEntry(repLine)
       this.view.add(newRep);
       newRep.delBtn.setAction (() => {
-        this.inputs.splice(this.view.indexOf(newRep)-1,1);
+        this.inputs.splice(this.view.indexOf(newRep),1);
         this.view.removeItem(newRep);
       });
     });
@@ -1654,7 +1655,7 @@ class Imovel extends DoiEntity {
     // TODO
   }
 
-  get participantes(operacao) {
+  participantes(operacao) {
     const parts = [];
     const op = operacao.list;
     for (const ni of Object.keys(op)) {
