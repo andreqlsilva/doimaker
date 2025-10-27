@@ -277,11 +277,7 @@ class Block extends UIComponent {
     this.items.splice(index,1);
     this.last -= 1;
   }
-  indexOf(item) {
-    const index = this.items.indexOf(item);
-    if (index === -1) throw new Error("Item not found.");
-    return index;
-  }
+  indexOf(item) { return (this.items.indexOf(item)); }
   removeItem(item) { this.remove(this.indexOf(item)); }
 }
 
@@ -468,7 +464,10 @@ class Pager extends DualPane {
   constructor(title) {
     super();
     this.nav = new PagerNav(title);
-    // nav.addBtn action set by parent
+    this.pane = this.nav.pane;
+    this.items = this.nav.items;
+    this.addBtn = this.nav.addBtn;
+    // addBtn action set by parent
     this.setLeft(this.nav);
     this.setRight(this.nav.pane);
   }
@@ -479,6 +478,7 @@ class Pager extends DualPane {
   removeCurrent() {
     this.nav.remove(this.nav.current);
   }
+  exists(page) { return (this.pane.indexOf(page) !== -1);  }
 }
 
 // MODELS AND VIEWS 
@@ -644,7 +644,7 @@ class DoiProp {
 
 class DoiEntity {
   constructor(schemaName,requiredList) {
-    if (!schemaName in doiDefs)
+    if (!(schemaName in doiDefs))
       throw new Error("schemaName not found");
     if (!requiredList || !requiredList.length)
       throw new Error("requiredList required");
@@ -700,7 +700,7 @@ class DoiEntity {
   }
 }
 
-class RepList {
+class RepList { 
   constructor() {
     this.inputs = [];
     this.view = new EditableList("Representantes");
@@ -710,11 +710,13 @@ class RepList {
       this.inputs.push(field);
       const repLine = new Row();
       repLine.add(label)
-      repline.add(field)
+      repLine.add(field)
       const newRep = new ListEntry(repLine)
-      newRep.delBtn.setAction (() =>
-        this.view.removeItem(newRep));
       this.view.add(newRep);
+      newRep.delBtn.setAction (() => {
+        this.inputs.splice(this.view.indexOf(newRep)-1,1);
+        this.view.removeItem(newRep);
+      });
     });
   }
   get list() {
@@ -758,7 +760,7 @@ class Subject extends DoiEntity {
   isConsistent() {
     return (this.indicadorNiIdentificado.value === true
       &&
-      !this.representantes.includes(this.ni.value)
+      !this.representantes.some(rep => rep.ni === this.ni.value)
       &&
       (!this.indicadorEspolio.value
         || this.cpfInventariante.value)
@@ -782,30 +784,37 @@ class Adquirente extends Subject {
 
 class SubjectList {
   constructor(title) {
-    this.inputs = [];
-    let position;
-    if (title === "Alienantes") position = "Alienante";
-    else if (title === "Adquirentes") position = "Adquirente";
-    else throw new Error("Invalid position.");
-    this.view = new EditableList(title);
-    this.view.addBtn.setAction(() => {
-      // TODO: render a new subject with empty data
-      const newSubj = new Subject(position);
+    if (title === "Alienantes")
+      this.position = "Alienante";
+    else if (title === "Adquirentes")
+      this.position = "Adquirente";
+    else
+      throw new Error("Invalid position.");
+    this.pager = new Pager(title);
+    this.items = [];
+    this.pager.addBtn.setAction(() => {
+      const newSubj = new Subject(this.position);
+      this.items.push(newSubj);
+      this.pager.addPage(newSubj.view);
     });
   }
-  get view() { return this.render(); }
+  get view() { return this.pager; }
   get list() {
-    const subjects = [];
-    for (const subj of this.inputs) {
-      // TODO: add valid inputs to subjects
-    }
-    return subjects;
+    const validSubjects = [];
+    for (const subject of this.items)
+      if (this.pager.exists(subject.view) && subject.isValid())
+        validSubjects.push(subject);
+    return validSubjects;
+  }
+  getSubjectByNi(ni) {
+    for (const subject of this.items)
+      if (subject.ni.value === ni) return subject;
   }
 }
 
 class Operacao {
   constructor(title) {
-    this.inputs = {};
+    this.inputs = new Map();
     const validTitle = title==null ? "Operação" : title;
     this.view = new EditableList(validTitle);
     this.view.addBtn.setAction(() => {
@@ -814,37 +823,39 @@ class Operacao {
       // Menu items must be managed by parent
       const label2 = new LabelElement("%: ");
       const participation = new NumberInput(0);
-      this.inputs[subject] = participation;
+      this.inputs.set(subject, participation);
       const line = new Row();
       line.add(label1); line.add(subject);
       line.add(label2); line.add(participation);
       const newOp = new ListEntry(line);
-      newOp.delBtn.setAction (() =>
-        this.view.removeItem(newRep));
       this.view.add(newOp);
+      newOp.delBtn.setAction (() => {
+        this.inputs.delete(subject);
+        this.view.removeItem(newOp);
+      });
     });
   }
   get total() {
-    const sum=0;
-    for (const subject of Object.keys(this.inputs)) {
-      sum+=this.inputs[subject].value;
+    let sum=0;
+    for (const [subject, participation] of this.inputs.entries()) {
+      sum+=Number(participation.value);
     }
     return sum;
   }
   get list() {
     const operacao = {};
-    for (const subject of Object.keys(this.inputs)) {
+    for (const subject of this.inputs.keys()) {
       const choice = subject.value;
-      const fraction = this.inputs[subject].value;
+      const fraction = Number(this.inputs.get(subject).value);
       if (this.validate(choice,fraction))
         operacao[choice] = fraction;
     }
     return operacao;
   }
   validate(ni,fraction) {
-    if (Subject.validate(ni) &&
-        typeof fraction === "number"
-        fraction>0 && fraction<=100)
+    if (Subject.validate(ni)
+        && typeof fraction === "number"
+        && fraction>0 && fraction<=100)
       return true;
     else return false;
   }
@@ -880,11 +891,11 @@ class Imovel extends DoiEntity {
     this.#outrosMunicipios = new MunicipioList();
   }
 
-  get subjects() { returns this.ato.subjects; }
+  get subjects() { return this.ato.subjects; }
   get alienacao() { return this.#alienacao; }
   get aquisicao() { return this.#aquisicao; }
   get outrosMunicipios() {
-    return Array.from(this.#outrosMunicipios);
+    // TODO
   }
 
   get participantes(operacao) {
@@ -895,7 +906,7 @@ class Imovel extends DoiEntity {
       const part = { "ni": ni, participacao: op[ni] }
       for (const prop of Object.keys(subj))
         if (subj[prop] instanceof DoiProp)
-          part[prop] = subj[prop]value;
+          part[prop] = subj[prop].value;
       parts.push(part);
     }
     return parts;
@@ -938,7 +949,24 @@ class Imovel extends DoiEntity {
 }
 
 class ImovelList {
-  //TODO
+  constructor(act) {
+    this.pager = new Pager("Imóveis");
+    this.act = act;
+    this.items = [];
+    this.pager.addBtn.setAction(() => {
+      const newImovel = new Imovel(this.act);
+      this.items.push(newImovel);
+      this.pager.addPage(newImovel.view);
+    });
+  }
+  get view() { return this.pager; }
+  get list() {
+    const validImoveis = [];
+    for (const imovel of this.items)
+      if (this.pager.exists(imovel.view) && imovel.isValid())
+        validImoveis.push(imovel);
+    return validImoveis;
+  }
 }
 
 class Ato extends DoiEntity {
@@ -955,7 +983,7 @@ class Ato extends DoiEntity {
     ]);
     this.#alienantes = new SubjectList("Alienantes");
     this.#adquirentes = new SubjectList("Adquirentes");
-    this.#imoveis = new ImoveisList(); // TODO: chk signature
+    this.#imoveis = new ImoveisList(this);
   }
 
   // TODO: adapt to new List classes
