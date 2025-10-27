@@ -1,1069 +1,3 @@
-// LOCAL STORAGE LIBRARY 
-
-function saveObject(obj,key) {
-  try {
-    localStorage.setItem(key, JSON.stringify(obj));
-  } catch (error) {
-    throw(error);
-  }
-}
-
-function loadObject(key) {
-  const item = localStorage.getItem(key);
-  try {
-    if (!item) throw new Error(`No object with key ${key}.`)
-    const obj = JSON.parse(item);
-    return obj;
-  } catch (error) {
-    throw(error);
-  }
-}
-
-function downloadObject(obj,filename) {
-  const content = JSON.stringify(obj,null,2);
-  const file = new Blob([content], {type:'text/plain'});
-  const url = URL.createObjectURL(file);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-async function readJson(fileobj) {
-  try {
-    const content = await fileobj.text();
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("Couldn't read.")
-    throw (error);
-  }
-}
-
-// FRONTEND LIBRARY 
-
-class UIComponent { // extend only
-  static tag = "p";
-  static className = "UIComponent";
-  constructor() {
-    this.ui = true;
-    this.html = document.createElement(this.constructor.tag)
-    this.html.classList.add(this.constructor.className);
-  }
-  show() { this.html.hidden = false; }
-  hide() { this.html.hidden = true; }
-  toggle() { this.html.hidden = !this.html.hidden; }
-  pick() { this.html.classList.add("picked"); }
-  unpick() { this.html.classList.remove("picked"); }
-  showOn(condition) {
-    //TODO
-  }
-  setId(id) { if (id) this.html.setAttribute("id",id); }
-}
-
-class DisplayElement extends UIComponent { // also extend only
-  static tag = "p";
-  static className = "DisplayElement";
-  constructor(title) {
-    super();
-    this.title = title;
-  }
-  get title() { return this._title; }
-  set title(newTitle) {
-    this._title = newTitle ?? "[title]";
-  }
-}
-
-class TextualElement extends DisplayElement {
-  static tag = "p";
-  static className = "TextualElement";
-  constructor(title) {
-    super(title);
-    this.html.textContent = this.title; 
-  }
-  set title(newTitle) {
-    this._title = newTitle ?? "[title]";
-    this.html.textContent = this._title;
-  }
-}
-
-class LabelElement extends TextualElement {
-  static tag = "label";
-  static className = "LabelElement";
-}
-
-class HElement extends TextualElement { // extend-only
-  static className = "HeaderElement";
-}
-
-class H1Element extends HElement { 
-  static tag = "h1";
-}
-
-class H2Element extends HElement {
-  static tag = "h2";
-}
-
-class H3Element extends HElement {
-  static tag = "h3";
-}
-
-class InputElement extends UIComponent {
-  static tag = "input";
-  static type = "text";
-  static className = "InputElement";
-  static isValid = (newInput) => {
-    return (newInput != null);
-  }
-  #defaultValue;
-  constructor(defaultValue) {
-    super();
-    this.html.setAttribute("type", this.constructor.type);
-    this.defaultValue = defaultValue;
-    this.value = defaultValue;
-  }
-  get value() { return this.html.value; }
-  set value(newValue) {
-    if (this.constructor.isValid(newValue))
-      this.html.value = newValue;
-    else throw new Error("Invalid value.");
-  }
-  get defaultValue() { return this.#defaultValue; }
-  set defaultValue(newDefault) {
-    if (this.constructor.isValid(newDefault))
-      this.#defaultValue = newDefault;
-    else throw new Error("Invalid default.");
-  }
-  reset() { this.html.value = this.defaultValue; }
-  isValid() { return this.constructor.isValid(this.value); }
-}
-
-class TextInput extends InputElement { 
-  static type = "text";
-  static className = "TextInput";
-  static isValid = (newInput) => {
-    return (typeof newInput === "string");
-  };
-  constructor(defaultText) {
-    super(defaultText);
-  }
-}
-
-class NumberInput extends InputElement {
-  static type = "number";
-  static className = "NumberInput";
-  static isValid = (newInput) => {
-    if (newInput == null || newInput === "") return false;
-    const n = Number(newInput);
-    return (Number.isFinite(n))
-  };
-  constructor(defaultValue) {
-    super(defaultValue ?? 0);
-  }
-}
-
-class DateInput extends InputElement {
-  static type = "date";
-  static className = "DateInput";
-  static isValid = (newInput) => {
-    return (newInput != null
-      && typeof newInput === "string"
-      && (newInput === ""
-        || !isNaN(Date.parse(newInput)))
-    );
-  };
-  constructor() {
-    super("");
-  }
-}
-
-class CheckboxInput extends UIComponent {
-  static tag = "input";
-  static className = "CheckboxInput";
-  constructor() {
-    super();
-    this.html.setAttribute("type", "checkbox");
-  }
-  set value(newValue) {
-    if (typeof newValue === "boolean")
-      this.html.checked = newValue;
-  }
-  get value() {
-    return this.html.checked;
-  }
-}
-
-class MenuInput extends UIComponent {
-  static tag = "select";
-  static className = "MenuInput";
-  constructor() {
-    super();
-    this.options = {};
-    const voidOption = document.createElement("option");
-    voidOption.value = "0";
-    voidOption.textContent = "";
-    this.html.appendChild(voidOption);
-  }
-  get value() { return this.html.value; }
-  add(code, title) {
-    if (code != null && title != null) {
-      const option = document.createElement("option");
-      option.value = code;
-      option.textContent = title;
-      this.options[code]=option;
-      this.html.appendChild(option);
-    }
-    else throw new Error("Invalid new option.");
-  }
-  remove(code) {
-    if (this.options[code] == null)
-      throw new Error("Option does not exist.");
-    this.html.removeChild(this.options[code]);
-    delete this.options[code];
-  }
-}
-
-class FilePicker extends UIComponent {
-  static tag = "input";
-  static className = "FilePicker";
-  constructor() {
-    super();
-    this.html.setAttribute("type", "file");
-  }
-  get file() {
-    return this.html.files[0];
-  }
-}
-
-class ControlButton extends UIComponent {
-  static tag = "button";
-  static className = "ControlButton";
-  constructor(text) {
-    super();
-    this.html.setAttribute("type", "button");
-    this.html.textContent = text ?? "Button";
-  }
-  setAction(actionFunction) {
-    if (actionFunction instanceof Function) {
-      this.html.addEventListener("click", actionFunction);
-    }
-  }
-  trigger() { this.html.click(); }
-}
-
-class Block extends UIComponent {
-  static tag = "div";
-  static className = "Block";
-  constructor() {
-    super();
-    this.items = [];
-    this.last = -1;
-  }
-  add(newItem) {
-    if (newItem?.ui) {
-      this.items.push(newItem);
-      this.html.appendChild(newItem.html);
-      this.last += 1;
-    }
-    else throw new Error("Invalid new entry.");
-  }
-  remove(index) {
-    if (index == null || index<0 || index>this.last)
-      throw new Error("Invalid index.");
-    this.html.removeChild(this.items[index].html);
-    this.items.splice(index,1);
-    this.last -= 1;
-  }
-  indexOf(item) { return (this.items.indexOf(item)); }
-  removeItem(item) { this.remove(this.indexOf(item)); }
-}
-
-class Row extends Block {
-  static tag = "div"; // each row takes up the whole width
-  static className = "Row";
-  add(newItem) {
-    super.add(newItem);
-    newItem.html.style.display = "inline";
-  }
-}
-
-class Form extends Block {
-  static tag = "div";
-  static className = "Form";
-  add(newItem) {
-    super.add(newItem);
-    newItem.html.style.display = "block";
-  }
-}
-
-class DualPane extends UIComponent {
-  static tag = "div";
-  static className = "DualPane";
-  constructor() {
-    super();
-    const left = new Block();
-    this.setPane(left,"left");
-    this.html.appendChild(left.html);
-    const right = new Block();
-    this.setPane(right,"right");
-    this.html.appendChild(right.html);
-  }
-  setPane(pane,side) {
-    if (pane == null || !pane.ui)
-      throw new Error("Invalid pane.");
-    this[side]=pane;
-  }
-  setLeft(pane) {
-    this.setPane(pane,'left');
-    this.html.replaceChild(pane.html, this.html.firstChild);
-  }
-  setRight(pane) {
-    this.setPane(pane,'right');
-    this.html.replaceChild(pane.html, this.html.lastChild);
-  }
-}
-
-class ListEntry extends Row {
-  static className = "ListEntry";
-  constructor(line) {
-    super();
-    if (line == null || !line.ui)
-      throw new Error("Invalid line.");
-    this.line = line;
-    this.add(line);
-    this.delBtn = new ControlButton('-');
-    // delete button action must be set by parent
-    this.add(this.delBtn);
-  }
-}
-
-class TitledBlock extends Block {
-  static className = "TitledBlock";
-  constructor(title) {
-    super();
-    this.titleLine = new Row();
-    this.titleLine.html.classList.add("BlockTitle");
-    this.title = new TextualElement(title ?? "[title]");
-    this.titleLine.add(this.title);
-    this.add(this.titleLine);
-  }
-}
-
-class EditableList extends TitledBlock {
-  static className = "EditableList";
-  constructor(title) {
-    super(title); 
-    this.addBtn = new ControlButton('+');
-    // addBtn action set by parent
-    this.titleLine.add(this.addBtn);
-    this.current = -1;
-  }
-  reset() {
-    this.items.forEach((item)=>item.unpick());
-  }
-  select(index) {
-    if (index == null || index<0 || index>this.last)
-      throw new Error("Invalid index.");
-    if (this.current >= 0)
-      this.items[this.current].unpick();
-    this.items[index].pick();
-    this.current = index;
-  }
-  add(newEntry) {
-    if (newEntry != null && newEntry instanceof ListEntry) {
-      super.add(newEntry);
-      newEntry.delBtn.setAction(() => this.removeItem(newEntry));
-      newEntry.line.html.addEventListener("click",
-        () => this.select(this.indexOf(newEntry)));
-    }
-    else throw new Error("Invalid list entry.")
-  }
-  remove(index) {
-    super.remove(index);
-    this.current = -1;
-    this.reset();
-  }
-}
-
-class PagerPane extends Block {
-  static className = "Pager";
-  constructor() {
-    super();
-    this.current = -1;
-  }
-  select(index) {
-    if (this.last < 0) return;
-    if (index == null || index<0 || index>this.last)
-      throw new Error("Invalid index.");
-    if (this.current >= 0)
-      this.items[this.current].hide(); 
-    this.items[index].show();
-    this.current = index;
-  }
-  add(newPage) {
-    super.add(newPage);
-    newPage.hide();
-  }
-  remove(index) {
-    super.remove(index);
-    if (index < this.current) this.current -= 1;
-    else if (index === this.current) {
-      // list empty
-      if (this.last < 0) this.current = -1;
-      // list not empty, removed first
-      else if (index === 0) this.select(0); 
-      // list not empty, removed non-first
-      else this.select(index-1);
-    }
-  }
-  toFirst() { this.select(0); }
-  toLast() { this.select(this.last); }
-  next() {
-    if (this.current < this.last)
-      this.select(this.current+1);
-  }
-  prev() {
-    if (this.current > 0)
-      this.select(this.current-1);
-  }
-}
-
-class PagerNav extends EditableList {
-  static className = "PagerNav"
-  constructor(title) {
-    super(title);
-    this.pane = new PagerPane();
-    this.pageCounter = 0;
-  }
-  select(index) {
-    if (index === 0) return;
-    super.select(index);
-    this.pane.select(index - 1);
-  }
-  add(page) {
-    this.pane.add(page);
-    const idLine = new TextualElement(++this.pageCounter);
-    const entry = new ListEntry(idLine);
-    super.add(entry);
-  }
-  remove(index) {
-    super.remove(index);
-    this.items.slice(1).forEach(
-      (entry, i) => entry.line.html.textContent = i + 1
-    );
-    this.pane.remove(index-1); // indexing mismatch due to header
-    this.pageCounter-=1;
-  }
-}
-
-class Pager extends DualPane {
-  static className = "Pager";
-  constructor(title) {
-    super();
-    this.nav = new PagerNav(title);
-    this.pane = this.nav.pane;
-    this.items = this.nav.items;
-    this.addBtn = this.nav.addBtn;
-    // addBtn action set by parent
-    this.setLeft(this.nav);
-    this.setRight(this.nav.pane);
-  }
-  addPage(newPage) {
-    if (newPage?.ui) this.nav.add(newPage);
-    else throw new Error("Invalid new page.");
-  }
-  removeCurrent() {
-    this.nav.remove(this.nav.current);
-  }
-  exists(page) { return (this.pane.indexOf(page) !== -1);  }
-}
-
-// MODELS AND VIEWS 
-class CPF {
-  static validate(ni) {
-    if (typeof ni !== "string") return false;
-    if (!/^\d{11}$/.test(ni)) return false;
-
-    // Reject CPFs with all digits the same (e.g. "11111111111")
-    if (/^(\d)\1{10}$/.test(ni)) return false;
-
-    const digits = ni.split("").map(d => parseInt(d, 10));
-
-    // Validate first check digit
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += digits[i] * (10 - i);
-    }
-    let firstCheck = 11 - (sum % 11);
-    if (firstCheck >= 10) firstCheck = 0;
-    if (digits[9] !== firstCheck) return false;
-
-    // Validate second check digit
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += digits[i] * (11 - i);
-    }
-    let secondCheck = 11 - (sum % 11);
-    if (secondCheck >= 10) secondCheck = 0;
-    if (digits[10] !== secondCheck) return false;
-
-    return true;
-  }
-}
-
-class CNPJ {
-  static validate(ni) {
-    if (typeof ni !== "string") return false;
-    if (!/^\d{14}$/.test(ni)) return false;
-
-    // Reject CNPJs with all digits the same
-    if (/^(\d)\1{13}$/.test(ni)) return false;
-
-    const digits = ni.split("").map(d => parseInt(d, 10));
-
-    // Weights for first check digit (positions 1-12)
-    const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    // Weights for second check digit (positions 1-13)
-    const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-
-    // Calculate first check digit
-    let sum = 0;
-    for (let i = 0; i < 12; i++) {
-      sum += digits[i] * weight1[i];
-    }
-    let firstCheck = sum % 11;
-    firstCheck = firstCheck < 2 ? 0 : 11 - firstCheck;
-    if (digits[12] !== firstCheck) return false;
-
-    // Calculate second check digit
-    sum = 0;
-    for (let i = 0; i < 13; i++) {
-      sum += digits[i] * weight2[i];
-    }
-    let secondCheck = sum % 11;
-    secondCheck = secondCheck < 2 ? 0 : 11 - secondCheck;
-    if (digits[13] !== secondCheck) return false;
-
-    return true;
-  }
-}
-
-class DoiProp {
-  constructor(schemaName,propName) {
-    const definitions = doiDefs[schemaName];
-    if (!definitions) throw new Error("schemaName does not exist");
-    if (typeof propName !== "string")
-      throw new Error("propName is required and must be a string.")
-    this.schema = definitions[propName];
-    if (!this.schema)
-      throw new Error(`Property ${propName} does not exist.`)
-    this.name = propName;
-    this.label = this.schema.description; 
-    this.value = null;
-    this.view = this.render();
-  }
-
-  forceValue(propValue) { this.value = propValue; }
-  setValue(propValue) { this.value = this.validate(propValue); }
-
-  validate(propValue) { // nullify invalid data
-    if (typeof propValue !== this.schema.type) {
-      return null;
-    }
-    if (this.schema.oneOf) {
-      for (const option of this.schema.oneOf) {
-        if (propValue === option.const) {
-          return propValue;
-        }
-      }
-      return null;
-    }
-    else {
-      if (this.schema.maxLength
-        && propValue.length > this.schema.maxLength) {
-        return null;
-      }
-      if (this.schema.minLength
-        && propValue.length < this.schema.minLength) {
-        return null;
-      }
-      if (this.schema.format
-        && !isFormatted(propValue,this.schema.format)) {
-        return null;
-      }
-      return propValue;
-    }
-
-    function isFormatted(value,format) {
-      if (format === "date") {
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(value)) return false;
-
-        const date = new Date(value);
-        if (isNaN(date.getTime())) return false;
-        return true;
-      }
-      else if (format === "int32") {
-        return (Number.isInteger(value)
-          && 0< value && value < 100000000);
-      }
-      else throw new Error("Impossible flow.");
-    }
-  }
-
-  render() {
-    const container = new Block();
-    container.add(new LabelElement(this.label));
-    let field;
-    if (this.schema.oneOf) {
-      field = new MenuInput();
-      for (const option of this.schema.oneOf) field.add(option);
-      field.html.addEventListener("change",
-        () => this.setValue(field.value[0]));
-    }
-    else {
-      if (this.schema.format === "date") 
-        field = new DateInput();
-      else if (this.schema.type === "boolean")
-        field = new CheckboxInput();
-      else if (this.schema.type === "number")
-        field = new NumberInput();
-      else if (this.schema.type === "string")
-        field = new TextInput();
-      else throw new Error("Invalid input type.");
-      field.html.addEventListener("input",
-        () => this.setValue(field.value));
-    }
-    container.add(field);
-    return container;
-  }
-}
-
-class DoiEntity {
-  constructor(schemaName,requiredList) {
-    if (!(schemaName in doiDefs))
-      throw new Error("schemaName not found");
-    if (!requiredList || !requiredList.length)
-      throw new Error("requiredList required");
-    this.schemaName = schemaName;
-    this.requiredList = requiredList;
-    for (const propName of Object.keys(doiDefs[this.schemaName])) {
-      this.forceProp(propName,null);
-    }
-    this.view = this.render();
-  }
-
-  render() {
-    const container = new Block();
-    container.add(new H3Element(this.schemaName))
-    for (const propName of Object.keys(this)) {
-      if (this[propName] instanceof DoiProp) {
-        container.add(this[propName].view);
-      }
-    }
-    return container;
-  }
-
-  forceProp(propName, propValue) {
-    this[propName] = new DoiProp(
-      this.schemaName, propName);
-    this[propName].forceValue(propValue);
-  }
-
-  setProp(propName, propValue) {
-    this[propName] = new DoiProp(
-      this.schemaName, propName);
-    this[propName].setValue(propValue);
-  }
-
-  isComplete() {
-    const requiredProps = new Set(this.requiredList);
-    for (const propName in this) {
-      const prop = this[propName];
-      // ignore properties outside of schema
-      if (!(prop instanceof DoiProp)) continue;
-      if (!prop.validate(prop.value)) return false;
-      if (requiredProps.has(prop.name)) {
-        requiredProps.delete(prop.name);
-      }
-    }
-    return requiredProps.size === 0;
-  }
-
-  isConsistent() { return true; }
-
-  isValid() {
-    return this.isComplete() && this.isConsistent();
-  }
-}
-
-class RepList { 
-  constructor() {
-    this.inputs = [];
-    this.view = new EditableList("Representantes");
-    this.view.addBtn.setAction(() => {
-      const label = new LabelElement("CPF ou CNPJ: ");
-      const field = new TextInput("");
-      this.inputs.push(field);
-      const repLine = new Row();
-      repLine.add(label)
-      repLine.add(field)
-      const newRep = new ListEntry(repLine)
-      this.view.add(newRep);
-      newRep.delBtn.setAction (() => {
-        this.inputs.splice(this.view.indexOf(newRep)-1,1);
-        this.view.removeItem(newRep);
-      });
-    });
-  }
-  get list() {
-    const representantes = [];
-    for (const rep of this.inputs) {
-      const ni = rep.value;
-      if (Subject.validate(ni))
-        representantes.push({"ni": ni});
-    }
-    return representantes;
-  }
-}
-
-class Subject extends DoiEntity {
-  static entity = "Subject";
-  static validate = (ni) => {
-    return (CPF.validate(ni) || CNPJ.validate(ni));
-  }
-  #representantes;
-  constructor (position) {
-    super(position,[
-      "indicadorEspolio",
-      "indicadorEstrangeiro",
-      "indicadorNaoConstaParticipacaoOperacao",
-      "indicadorNiIdentificado"
-    ]);
-    this.#representantes = new RepList();
-    this.view = this.render();
-  }
-
-  get representantes() {
-    return this.#representantes.list;
-  }
-
-  render() {
-    const container = super.render();
-    container.add(this.#representantes.view);
-    return container;
-  }
-
-  isConsistent() {
-    return (this.indicadorNiIdentificado.value === true
-      &&
-      !this.representantes.some(rep => rep.ni === this.ni.value)
-      &&
-      (!this.indicadorEspolio.value
-        || this.cpfInventariante.value)
-      &&
-      (!this.indicadorConjuge.value 
-        || (this.indicadorCpfConjugeIdentificado.value
-          && this.regimeBens.value))
-    );
-  }
-}
-
-class Alienante extends Subject {
-  static entity = "Alienante";
-  constructor() { super("Alienante"); }
-}
-
-class Adquirente extends Subject {
-  static entity = "Adquirente";
-  constructor() { super("Adquirente"); }
-}
-
-class SubjectList {
-  constructor(title) {
-    if (title === "Alienantes")
-      this.position = "Alienante";
-    else if (title === "Adquirentes")
-      this.position = "Adquirente";
-    else
-      throw new Error("Invalid position.");
-    this.pager = new Pager(title);
-    this.items = [];
-    this.pager.addBtn.setAction(() => {
-      const newSubj = new Subject(this.position);
-      this.items.push(newSubj);
-      this.pager.addPage(newSubj.view);
-    });
-  }
-  get view() { return this.pager; }
-  get list() {
-    const validSubjects = [];
-    for (const subject of this.items)
-      if (this.pager.exists(subject.view) && subject.isValid())
-        validSubjects.push(subject);
-    return validSubjects;
-  }
-  getSubjectByNi(ni) {
-    for (const subject of this.items)
-      if (subject.ni.value === ni) return subject;
-  }
-}
-
-class Operacao {
-  constructor(title) {
-    this.inputs = new Map();
-    const validTitle = title==null ? "Operação" : title;
-    this.view = new EditableList(validTitle);
-    this.view.addBtn.setAction(() => {
-      const label1 = new LabelElement("Participante: ");
-      const subject = new MenuInput();
-      // Menu items must be managed by parent
-      const label2 = new LabelElement("%: ");
-      const participation = new NumberInput(0);
-      this.inputs.set(subject, participation);
-      const line = new Row();
-      line.add(label1); line.add(subject);
-      line.add(label2); line.add(participation);
-      const newOp = new ListEntry(line);
-      this.view.add(newOp);
-      newOp.delBtn.setAction (() => {
-        this.inputs.delete(subject);
-        this.view.removeItem(newOp);
-      });
-    });
-  }
-  get total() {
-    let sum=0;
-    for (const [subject, participation] of this.inputs.entries()) {
-      sum+=Number(participation.value);
-    }
-    return sum;
-  }
-  get list() {
-    const operacao = {};
-    for (const subject of this.inputs.keys()) {
-      const choice = subject.value;
-      const fraction = Number(this.inputs.get(subject).value);
-      if (this.validate(choice,fraction))
-        operacao[choice] = fraction;
-    }
-    return operacao;
-  }
-  validate(ni,fraction) {
-    if (Subject.validate(ni)
-        && typeof fraction === "number"
-        && fraction>0 && fraction<=100)
-      return true;
-    else return false;
-  }
-  isValid() {
-    return (this.total>=98 && this.total <=100);
-  }
-}
-
-class MunicipioList {
-  //TODO (last)
-}
-
-class Imovel extends DoiEntity {
-  #alienacao;
-  #aquisicao;
-  #outrosMunicipios;
-  static entity = "Imovel";
-  constructor(ato) {
-    super("Imovel",[
-      "destinacao",
-      "formaPagamento",
-      "indicadorImovelPublicoUniao",
-      "indicadorPagamentoDinheiro",
-      "indicadorPermutaBens",
-      "tipoOperacaoImobiliaria",
-      "tipoParteTransacionada",
-      "tipoServico",
-      "valorParteTransacionada"
-    ]);
-    this.ato = ato; // TODO: validate this
-    this.#alienacao = new Operacao("Alienação");
-    this.#aquisicao = new Operacao("Aquisição");
-    this.#outrosMunicipios = new MunicipioList();
-  }
-
-  get subjects() { return this.ato.subjects; }
-  get alienacao() { return this.#alienacao; }
-  get aquisicao() { return this.#aquisicao; }
-  get outrosMunicipios() {
-    // TODO
-  }
-
-  get participantes(operacao) {
-    const parts = [];
-    const op = operacao.list;
-    for (const ni of Object.keys(op)) {
-      const subj = this.subjects.getSubjectByNi(ni);
-      const part = { "ni": ni, participacao: op[ni] }
-      for (const prop of Object.keys(subj))
-        if (subj[prop] instanceof DoiProp)
-          part[prop] = subj[prop].value;
-      parts.push(part);
-    }
-    return parts;
-  }
-
-  get doi() {
-    const doi = {};
-    for (const propName of Object.keys(doiDefs[this.schemaName]))
-      doi[propName] = this[propName].value;
-    doi.alienantes = this.participantes(this.alienacao);
-    doi.adquirentes = this.participantes(this.aquisicao);
-    return doi;
-  }
-
-  render() {
-    const container = super.render();
-    container.add(this.#aquisicao.view);
-    container.add(this.#alienacao.view);
-    //TODO: add outrosMunicipios
-    return container;
-  }
-
-/*
-  addMunicipio(codigoIbge) {
-    if (typeof codigoIbge === "string"
-      && /^\d{7}$/.test(codigoIbge))
-      this.#outrosMunicipios.add(codigoIbge);
-  }
-
-  removeMunicipio(codigoIbge) {
-    if (typeof codigoIbge === "string"
-      && /^\d{7}$/.test(codigoIbge))
-      this.#outrosMunicipios.delete(codigoIbge);
-  }
-*/
-  isConsistent() {
-    return (this.#alienacao.isValid()
-      && this.#aquisicao.isValid());
-  }
-}
-
-class ImovelList {
-  constructor(act) {
-    this.pager = new Pager("Imóveis");
-    this.act = act;
-    this.items = [];
-    this.pager.addBtn.setAction(() => {
-      const newImovel = new Imovel(this.act);
-      this.items.push(newImovel);
-      this.pager.addPage(newImovel.view);
-    });
-  }
-  get view() { return this.pager; }
-  get list() {
-    const validImoveis = [];
-    for (const imovel of this.items)
-      if (this.pager.exists(imovel.view) && imovel.isValid())
-        validImoveis.push(imovel);
-    return validImoveis;
-  }
-}
-
-class Ato extends DoiEntity {
-  #alienantes;
-  #adquirentes;
-  #imoveis;
-  static entity = "Ato";
-  constructor() {
-    super("Ato",[
-      "dataLavraturaRegistroAverbacao",
-      "dataNegocioJuridico",
-      "tipoDeclaracao",
-      "tipoServico",
-    ]);
-    this.#alienantes = new SubjectList("Alienantes");
-    this.#adquirentes = new SubjectList("Adquirentes");
-    this.#imoveis = new ImoveisList(this);
-  }
-
-  // TODO: adapt to new List classes
-  get alienantes() { return this.#alienantes.list; };
-  get adquirentes() { return this.#adquirentes.list; };
-  get imoveis() { return this.#imoveis.list; };
-
-  render() { // TODO: !
-    const container = super.render();
-    const alienBox = new ListComponent('Alienantes');
-    const alienDef = (new Alienante()).view;
-    alienBox.setDefault(alienDef.html);
-    const adqBox = new ListComponent('Adquirentes');
-    const adqDef = (new Adquirente()).view;
-    adqBox.setDefault(adqDef.html);
-    const imovBox = new ListComponent('Imoveis');
-    const imovDef = (new Imovel()).view;
-    imovBox.setDefault(imovDef.html);
-    container.add(alienBox);
-    container.add(adqBox);
-    container.add(imovBox);
-    return container;
-  }
-
-
-  json() {
-    const declaracoes = [];
-    const doiList = this.imoveis.list;
-    for (const imovel of doiList) declaracoes.push(imovel.doi);
-    const ato = { "declaracoes": declaracoes };
-    return JSON.stringify(ato);
-  }
-/*
-  includeAlienante(alienanteObj) {
-    if (alienanteObj instanceof Alienante 
-      && alienanteObj.isValid()) {
-      this.#alienantes.add(alienanteObj);
-    }
-  }
-
-  getAlienanteByNi(ni) {
-    for (const person of this.#alienantes) {
-      if (person.ni.value == ni) return person;
-    }
-    return null;
-  }
-
-  removeAlienante(alienanteObj) {
-    this.#alienantes.delete(alienanteObj);
-  }
-
-  includeAdquirente(adquirenteObj) {
-    if (adquirenteObj instanceof Adquirente
-      && adquirenteObj.isValid())
-      this.#adquirentes.add(adquirenteObj);
-  }
-
-  getAdquirenteByNi(ni) {
-    for (const person of this.#adquirentes) {
-      if (person.ni.value == ni) return person;
-    }
-    return null;
-  }
-
-  removeAdquirente(adquirenteObj) {
-    this.#adquirentes.delete(adquirenteObj);
-  }
-
-  addImovel(imovelObj) {
-    if (imovelObj instanceof Imovel
-      && imovelObj.isValid())
-      this.#imoveis.add(imovelObj);
-  }
-
-  removeImovel(imovelObj) { this.#imoveis.delete(imovelObj); }
-*/
-  // TODO: !
-  isConsistent() { return true; }
-}
-
 // BEGIN SCHEMA
 const doiJson = `{
   "Adquirente": {
@@ -1819,144 +753,1080 @@ const doiJson = `{
 }`;
 // END SCHEMA
 
+// LOCAL STORAGE LIBRARY 
+
+function saveObject(obj,key) {
+  localStorage.setItem(key, JSON.stringify(obj));
+}
+
+function loadObject(key) {
+  const item = localStorage.getItem(key);
+  try {
+    if (!item) throw new Error(`No object with key ${key}.`)
+    const obj = JSON.parse(item);
+    return obj;
+  } catch (error) {
+    throw(error);
+  }
+}
+
+function downloadObject(obj,filename) {
+  const content = JSON.stringify(obj,null,2);
+  const file = new Blob([content], {type:'text/plain'});
+  const url = URL.createObjectURL(file);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function readJson(fileobj) {
+  try {
+    const content = await fileobj.text();
+    return JSON.parse(content);
+  } catch (error) {
+    console.error("Couldn't read.")
+    throw (error);
+  }
+}
+
+// FRONTEND LIBRARY 
+
+class UIComponent { // extend only
+  static tag = "p";
+  static className = "UIComponent";
+  constructor() {
+    this.ui = true;
+    this.html = document.createElement(this.constructor.tag)
+    this.html.classList.add(this.constructor.className);
+  }
+  show() { this.html.hidden = false; }
+  hide() { this.html.hidden = true; }
+  toggle() { this.html.hidden = !this.html.hidden; }
+  pick() { this.html.classList.add("picked"); }
+  unpick() { this.html.classList.remove("picked"); }
+  showOn(condition) {
+    //TODO
+  }
+  setId(id) { if (id) this.html.setAttribute("id",id); }
+}
+
+class DisplayElement extends UIComponent { // also extend only
+  static tag = "p";
+  static className = "DisplayElement";
+  constructor(title) {
+    super();
+    this.title = title;
+  }
+  get title() { return this._title; }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+  }
+}
+
+class TextualElement extends DisplayElement {
+  static tag = "p";
+  static className = "TextualElement";
+  constructor(title) {
+    super(title);
+    this.html.textContent = this.title; 
+  }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+    this.html.textContent = this._title;
+  }
+}
+
+class LabelElement extends TextualElement {
+  static tag = "label";
+  static className = "LabelElement";
+}
+
+class HElement extends TextualElement { // extend-only
+  static className = "HeaderElement";
+}
+
+class H1Element extends HElement { 
+  static tag = "h1";
+}
+
+class H2Element extends HElement {
+  static tag = "h2";
+}
+
+class H3Element extends HElement {
+  static tag = "h3";
+}
+
+class InputElement extends UIComponent {
+  static tag = "input";
+  static type = "text";
+  static className = "InputElement";
+  static isValid = (newInput) => {
+    return (newInput != null);
+  }
+  #defaultValue;
+  constructor(defaultValue) {
+    super();
+    this.html.setAttribute("type", this.constructor.type);
+    this.defaultValue = defaultValue;
+    this.value = defaultValue;
+  }
+  get value() { return this.html.value; }
+  set value(newValue) {
+    if (this.constructor.isValid(newValue))
+      this.html.value = newValue;
+    else throw new Error("Invalid value.");
+  }
+  get defaultValue() { return this.#defaultValue; }
+  set defaultValue(newDefault) {
+    if (this.constructor.isValid(newDefault))
+      this.#defaultValue = newDefault;
+    else throw new Error("Invalid default.");
+  }
+  reset() { this.html.value = this.defaultValue; }
+  isValid() { return this.constructor.isValid(this.value); }
+}
+
+class TextInput extends InputElement { 
+  static type = "text";
+  static className = "TextInput";
+  static isValid = (newInput) => {
+    return (typeof newInput === "string");
+  };
+  constructor(defaultText) {
+    super(defaultText);
+  }
+}
+
+class NumberInput extends InputElement {
+  static type = "number";
+  static className = "NumberInput";
+  static isValid = (newInput) => {
+    if (newInput == null || newInput === "") return false;
+    const n = Number(newInput);
+    return (Number.isFinite(n))
+  };
+  constructor(defaultValue) {
+    super(defaultValue ?? 0);
+  }
+}
+
+class DateInput extends InputElement {
+  static type = "date";
+  static className = "DateInput";
+  static isValid = (newInput) => {
+    return (newInput != null
+      && typeof newInput === "string"
+      && (newInput === ""
+        || !isNaN(Date.parse(newInput)))
+    );
+  };
+  constructor() {
+    super("");
+  }
+}
+
+class CheckboxInput extends UIComponent {
+  static tag = "input";
+  static className = "CheckboxInput";
+  constructor() {
+    super();
+    this.html.setAttribute("type", "checkbox");
+  }
+  set value(newValue) {
+    if (typeof newValue === "boolean")
+      this.html.checked = newValue;
+  }
+  get value() {
+    return this.html.checked;
+  }
+}
+
+class MenuInput extends UIComponent {
+  static tag = "select";
+  static className = "MenuInput";
+  constructor() {
+    super();
+    this.options = {};
+    const voidOption = document.createElement("option");
+    voidOption.value = "0";
+    voidOption.textContent = "";
+    this.html.appendChild(voidOption);
+  }
+  get value() { return this.html.value; }
+  add(code, title) {
+    if (code != null && title != null) {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = title;
+      this.options[code]=option;
+      this.html.appendChild(option);
+    }
+    else throw new Error("Invalid new option.");
+  }
+  remove(code) {
+    if (this.options[code] == null)
+      throw new Error("Option does not exist.");
+    this.html.removeChild(this.options[code]);
+    delete this.options[code];
+  }
+}
+
+class FilePicker extends UIComponent {
+  static tag = "input";
+  static className = "FilePicker";
+  constructor() {
+    super();
+    this.html.setAttribute("type", "file");
+  }
+  get file() {
+    return this.html.files[0];
+  }
+}
+
+class ControlButton extends UIComponent {
+  static tag = "button";
+  static className = "ControlButton";
+  constructor(text) {
+    super();
+    this.html.setAttribute("type", "button");
+    this.html.textContent = text ?? "Button";
+  }
+  setAction(actionFunction) {
+    if (actionFunction instanceof Function) {
+      this.html.addEventListener("click", actionFunction);
+    }
+  }
+  trigger() { this.html.click(); }
+}
+
+class Block extends UIComponent {
+  static tag = "div";
+  static className = "Block";
+  constructor() {
+    super();
+    this.items = [];
+    this.last = -1;
+  }
+  add(newItem) {
+    if (newItem?.ui) {
+      this.items.push(newItem);
+      this.html.appendChild(newItem.html);
+      this.last += 1;
+    }
+    else throw new Error("Invalid new entry.");
+  }
+  remove(index) {
+    if (index == null || index<0 || index>this.last)
+      throw new Error("Invalid index.");
+    this.html.removeChild(this.items[index].html);
+    this.items.splice(index,1);
+    this.last -= 1;
+  }
+  indexOf(item) { return (this.items.indexOf(item)); }
+  removeItem(item) { this.remove(this.indexOf(item)); }
+}
+
+class Row extends Block {
+  static tag = "div"; // each row takes up the whole width
+  static className = "Row";
+  add(newItem) {
+    super.add(newItem);
+    newItem.html.style.display = "inline";
+  }
+}
+
+class Form extends Block {
+  static tag = "div";
+  static className = "Form";
+  add(newItem) {
+    super.add(newItem);
+    newItem.html.style.display = "block";
+  }
+}
+
+class DualPane extends UIComponent {
+  static tag = "div";
+  static className = "DualPane";
+  constructor() {
+    super();
+    const left = new Block();
+    this.setPane(left,"left");
+    this.html.appendChild(left.html);
+    const right = new Block();
+    this.setPane(right,"right");
+    this.html.appendChild(right.html);
+  }
+  setPane(pane,side) {
+    if (pane == null || !pane.ui)
+      throw new Error("Invalid pane.");
+    this[side]=pane;
+  }
+  setLeft(pane) {
+    this.setPane(pane,'left');
+    this.html.replaceChild(pane.html, this.html.firstChild);
+  }
+  setRight(pane) {
+    this.setPane(pane,'right');
+    this.html.replaceChild(pane.html, this.html.lastChild);
+  }
+}
+
+class ListEntry extends Row {
+  static className = "ListEntry";
+  constructor(line) {
+    super();
+    if (line == null || !line.ui)
+      throw new Error("Invalid line.");
+    this.line = line;
+    this.add(line);
+    this.delBtn = new ControlButton('-');
+    // delete button action must be set by parent
+    this.add(this.delBtn);
+  }
+}
+
+class TitledBlock extends Block {
+  static className = "TitledBlock";
+  constructor(title) {
+    super();
+    this.titleLine = new Row();
+    this.titleLine.html.classList.add("BlockTitle");
+    this.title = new TextualElement(title ?? "[title]");
+    this.titleLine.add(this.title);
+    this.add(this.titleLine);
+  }
+}
+
+class EditableList extends TitledBlock {
+  static className = "EditableList";
+  constructor(title) {
+    super(title); 
+    this.addBtn = new ControlButton('+');
+    // addBtn action set by parent
+    this.titleLine.add(this.addBtn);
+    this.current = -1;
+  }
+  reset() {
+    this.items.forEach((item)=>item.unpick());
+  }
+  select(index) {
+    if (index == null || index<0 || index>this.last)
+      throw new Error("Invalid index.");
+    if (this.current >= 0)
+      this.items[this.current].unpick();
+    this.items[index].pick();
+    this.current = index;
+  }
+  add(newEntry) {
+    if (newEntry != null && newEntry instanceof ListEntry) {
+      super.add(newEntry);
+      newEntry.delBtn.setAction(() => this.removeItem(newEntry));
+      newEntry.line.html.addEventListener("click",
+        () => this.select(this.indexOf(newEntry)));
+    }
+    else throw new Error("Invalid list entry.")
+  }
+  remove(index) {
+    super.remove(index);
+    this.current = -1;
+    this.reset();
+  }
+}
+
+class PagerPane extends Block {
+  static className = "Pager";
+  constructor() {
+    super();
+    this.current = -1;
+  }
+  select(index) {
+    if (this.last < 0) return;
+    if (index == null || index<0 || index>this.last)
+      throw new Error("Invalid index.");
+    if (this.current >= 0)
+      this.items[this.current].hide(); 
+    this.items[index].show();
+    this.current = index;
+  }
+  add(newPage) {
+    super.add(newPage);
+    newPage.hide();
+  }
+  remove(index) {
+    super.remove(index);
+    if (index < this.current) this.current -= 1;
+    else if (index === this.current) {
+      // list empty
+      if (this.last < 0) this.current = -1;
+      // list not empty, removed first
+      else if (index === 0) this.select(0); 
+      // list not empty, removed non-first
+      else this.select(index-1);
+    }
+  }
+  toFirst() { this.select(0); }
+  toLast() { this.select(this.last); }
+  next() {
+    if (this.current < this.last)
+      this.select(this.current+1);
+  }
+  prev() {
+    if (this.current > 0)
+      this.select(this.current-1);
+  }
+}
+
+class PagerNav extends EditableList {
+  static className = "PagerNav"
+  constructor(title) {
+    super(title);
+    this.pane = new PagerPane();
+    this.pageCounter = 0;
+  }
+  select(index) {
+    if (index === 0) return;
+    super.select(index);
+    this.pane.select(index - 1);
+  }
+  add(page) {
+    this.pane.add(page);
+    const idLine = new TextualElement(++this.pageCounter);
+    const entry = new ListEntry(idLine);
+    super.add(entry);
+  }
+  remove(index) {
+    super.remove(index);
+    this.items.slice(1).forEach(
+      (entry, i) => entry.line.html.textContent = i + 1
+    );
+    this.pane.remove(index-1); // indexing mismatch due to header
+    this.pageCounter-=1;
+  }
+}
+
+class Pager extends DualPane {
+  static className = "Pager";
+  constructor(title) {
+    super();
+    this.nav = new PagerNav(title);
+    this.pane = this.nav.pane;
+    this.items = this.nav.items;
+    this.addBtn = this.nav.addBtn;
+    // addBtn action set by parent
+    this.setLeft(this.nav);
+    this.setRight(this.nav.pane);
+  }
+  addPage(newPage) {
+    if (newPage?.ui) this.nav.add(newPage);
+    else throw new Error("Invalid new page.");
+  }
+  removeCurrent() {
+    this.nav.remove(this.nav.current);
+  }
+  exists(page) { return (this.pane.indexOf(page) !== -1);  }
+}
+
+// MODELS AND VIEWS 
+class CPF {
+  static validate(ni) {
+    if (typeof ni !== "string") return false;
+    if (!/^\d{11}$/.test(ni)) return false;
+
+    // Reject CPFs with all digits the same (e.g. "11111111111")
+    if (/^(\d)\1{10}$/.test(ni)) return false;
+
+    const digits = ni.split("").map(d => parseInt(d, 10));
+
+    // Validate first check digit
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += digits[i] * (10 - i);
+    }
+    let firstCheck = 11 - (sum % 11);
+    if (firstCheck >= 10) firstCheck = 0;
+    if (digits[9] !== firstCheck) return false;
+
+    // Validate second check digit
+    sum = 0;
+    for (let i = 0; i < 10; i++) {
+      sum += digits[i] * (11 - i);
+    }
+    let secondCheck = 11 - (sum % 11);
+    if (secondCheck >= 10) secondCheck = 0;
+    if (digits[10] !== secondCheck) return false;
+
+    return true;
+  }
+}
+
+class CNPJ {
+  static validate(ni) {
+    if (typeof ni !== "string") return false;
+    if (!/^\d{14}$/.test(ni)) return false;
+
+    // Reject CNPJs with all digits the same
+    if (/^(\d)\1{13}$/.test(ni)) return false;
+
+    const digits = ni.split("").map(d => parseInt(d, 10));
+
+    // Weights for first check digit (positions 1-12)
+    const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    // Weights for second check digit (positions 1-13)
+    const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+    // Calculate first check digit
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      sum += digits[i] * weight1[i];
+    }
+    let firstCheck = sum % 11;
+    firstCheck = firstCheck < 2 ? 0 : 11 - firstCheck;
+    if (digits[12] !== firstCheck) return false;
+
+    // Calculate second check digit
+    sum = 0;
+    for (let i = 0; i < 13; i++) {
+      sum += digits[i] * weight2[i];
+    }
+    let secondCheck = sum % 11;
+    secondCheck = secondCheck < 2 ? 0 : 11 - secondCheck;
+    if (digits[13] !== secondCheck) return false;
+
+    return true;
+  }
+}
+
+class DoiProp {
+  constructor(schemaName,propName) {
+    const definitions = doiDefs[schemaName];
+    if (!definitions) throw new Error("schemaName does not exist");
+    if (typeof propName !== "string")
+      throw new Error("propName is required and must be a string.")
+    this.schema = definitions[propName];
+    if (!this.schema)
+      throw new Error(`Property ${propName} does not exist.`)
+    this.name = propName;
+    this.label = this.schema.description; 
+    this.value = null;
+    this.view = this.render();
+  }
+
+  forceValue(propValue) { this.value = propValue; }
+  setValue(propValue) { this.value = this.validate(propValue); }
+
+  validate(propValue) { // nullify invalid data
+    if (typeof propValue !== this.schema.type) {
+      return null;
+    }
+    if (this.schema.oneOf) {
+      for (const option of this.schema.oneOf) {
+        if (propValue === option.const) {
+          return propValue;
+        }
+      }
+      return null;
+    }
+    else {
+      if (this.schema.maxLength
+        && propValue.length > this.schema.maxLength) {
+        return null;
+      }
+      if (this.schema.minLength
+        && propValue.length < this.schema.minLength) {
+        return null;
+      }
+      if (this.schema.format
+        && !isFormatted(propValue,this.schema.format)) {
+        return null;
+      }
+      return propValue;
+    }
+
+    function isFormatted(value,format) {
+      if (format === "date") {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(value)) return false;
+
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return false;
+        return true;
+      }
+      else if (format === "int32") {
+        return (Number.isInteger(value)
+          && 0< value && value < 100000000);
+      }
+      else throw new Error("Impossible flow.");
+    }
+  }
+
+  render() {
+    const container = new Block();
+    container.add(new LabelElement(this.label));
+    let field;
+    if (this.schema.oneOf) {
+      field = new MenuInput();
+      for (const option of this.schema.oneOf) field.add(option);
+      field.html.addEventListener("change",
+        () => this.setValue(field.value));
+    }
+    else {
+      if (this.schema.format === "date") 
+        field = new DateInput();
+      else if (this.schema.type === "boolean")
+        field = new CheckboxInput();
+      else if (this.schema.type === "number")
+        field = new NumberInput();
+      else if (this.schema.type === "string")
+        field = new TextInput();
+      else throw new Error("Invalid input type.");
+      field.html.addEventListener("input",
+        () => this.setValue(field.value));
+    }
+    container.add(field);
+    return container;
+  }
+}
+
+class DoiEntity {
+  constructor(schemaName,requiredList) {
+    if (!(schemaName in doiDefs))
+      throw new Error("schemaName not found");
+    if (!requiredList || !requiredList.length)
+      throw new Error("requiredList required");
+    this.schemaName = schemaName;
+    this.requiredList = requiredList;
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      this.forceProp(propName,null);
+    }
+    this.view = this.render();
+  }
+
+  render() {
+    const container = new Block();
+    container.add(new H3Element(this.schemaName))
+    for (const propName of Object.keys(this)) {
+      if (this[propName] instanceof DoiProp) {
+        container.add(this[propName].view);
+      }
+    }
+    return container;
+  }
+
+  forceProp(propName, propValue) {
+    this[propName] = new DoiProp(
+      this.schemaName, propName);
+    this[propName].forceValue(propValue);
+  }
+
+  setProp(propName, propValue) {
+    this[propName] = new DoiProp(
+      this.schemaName, propName);
+    this[propName].setValue(propValue);
+  }
+
+  isComplete() {
+    const requiredProps = new Set(this.requiredList);
+    for (const propName in this) {
+      const prop = this[propName];
+      // ignore properties outside of schema
+      if (!(prop instanceof DoiProp)) continue;
+      if (!prop.validate(prop.value)) return false;
+      if (requiredProps.has(prop.name)) {
+        requiredProps.delete(prop.name);
+      }
+    }
+    return requiredProps.size === 0;
+  }
+
+  isConsistent() { return true; }
+
+  isValid() {
+    return this.isComplete() && this.isConsistent();
+  }
+}
+
+class RepList { 
+  constructor() {
+    this.inputs = [];
+    this.view = new EditableList("Representantes");
+    this.view.addBtn.setAction(() => {
+      const label = new LabelElement("CPF ou CNPJ: ");
+      const field = new TextInput("");
+      this.inputs.push(field);
+      const repLine = new Row();
+      repLine.add(label)
+      repLine.add(field)
+      const newRep = new ListEntry(repLine)
+      this.view.add(newRep);
+      newRep.delBtn.setAction (() => {
+        this.inputs.splice(this.view.indexOf(newRep)-1,1);
+        this.view.removeItem(newRep);
+      });
+    });
+  }
+  get list() {
+    const representantes = [];
+    for (const rep of this.inputs) {
+      const ni = rep.value;
+      if (Subject.validate(ni))
+        representantes.push({"ni": ni});
+    }
+    return representantes;
+  }
+}
+
+class Subject extends DoiEntity {
+  static entity = "Subject";
+  static validate = (ni) => {
+    return (CPF.validate(ni) || CNPJ.validate(ni));
+  }
+  #representantes;
+  constructor (position) {
+    super(position,[
+      "indicadorEspolio",
+      "indicadorEstrangeiro",
+      "indicadorNaoConstaParticipacaoOperacao",
+      "indicadorNiIdentificado"
+    ]);
+    this.#representantes = new RepList();
+    this.view = this.render();
+  }
+
+  get representantes() {
+    return this.#representantes.list;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.#representantes.view);
+    return container;
+  }
+
+  isConsistent() {
+    return (this.indicadorNiIdentificado.value === true
+      &&
+      !this.representantes.some(rep => rep.ni === this.ni.value)
+      &&
+      (!this.indicadorEspolio.value
+        || this.cpfInventariante.value)
+      &&
+      (!this.indicadorConjuge.value 
+        || (this.indicadorCpfConjugeIdentificado.value
+          && this.regimeBens.value))
+    );
+  }
+}
+
+class Alienante extends Subject {
+  static entity = "Alienante";
+  constructor() { super("Alienante"); }
+}
+
+class Adquirente extends Subject {
+  static entity = "Adquirente";
+  constructor() { super("Adquirente"); }
+}
+
+class SubjectList {
+  constructor(title) {
+    if (title === "Alienantes")
+      this.position = "Alienante";
+    else if (title === "Adquirentes")
+      this.position = "Adquirente";
+    else
+      throw new Error("Invalid position.");
+    this.pager = new Pager(title);
+    this.items = [];
+    this.pager.addBtn.setAction(() => {
+      const newSubj = new Subject(this.position);
+      this.items.push(newSubj);
+      this.pager.addPage(newSubj.view);
+    });
+  }
+  get view() { return this.pager; }
+  get list() {
+    const validSubjects = [];
+    for (const subject of this.items)
+      if (this.pager.exists(subject.view) && subject.isValid())
+        validSubjects.push(subject);
+    return validSubjects;
+  }
+  getSubjectByNi(ni) {
+    for (const subject of this.items)
+      if (subject.ni.value === ni) return subject;
+  }
+}
+
+class Operacao {
+  constructor(title) {
+    this.inputs = new Map();
+    const validTitle = title==null ? "Operação" : title;
+    this.view = new EditableList(validTitle);
+    this.view.addBtn.setAction(() => {
+      const label1 = new LabelElement("Participante: ");
+      const subject = new MenuInput();
+      // Menu items must be managed by parent
+      const label2 = new LabelElement("%: ");
+      const participation = new NumberInput(0);
+      this.inputs.set(subject, participation);
+      const line = new Row();
+      line.add(label1); line.add(subject);
+      line.add(label2); line.add(participation);
+      const newOp = new ListEntry(line);
+      this.view.add(newOp);
+      newOp.delBtn.setAction (() => {
+        this.inputs.delete(subject);
+        this.view.removeItem(newOp);
+      });
+    });
+  }
+  get total() {
+    let sum=0;
+    for (const [subject, participation] of this.inputs.entries()) {
+      sum+=Number(participation.value);
+    }
+    return sum;
+  }
+  get list() {
+    const operacao = {};
+    for (const subject of this.inputs.keys()) {
+      const choice = subject.value;
+      const fraction = Number(this.inputs.get(subject).value);
+      if (this.validate(choice,fraction))
+        operacao[choice] = fraction;
+    }
+    return operacao;
+  }
+  validate(ni,fraction) {
+    if (Subject.validate(ni)
+        && typeof fraction === "number"
+        && fraction>0 && fraction<=100)
+      return true;
+    else return false;
+  }
+  isValid() {
+    return (this.total>=98 && this.total <=100);
+  }
+}
+
+class MunicipioList {
+  //TODO (last)
+}
+
+class Imovel extends DoiEntity {
+  #alienacao;
+  #aquisicao;
+  #outrosMunicipios;
+  static entity = "Imovel";
+  constructor(ato) {
+    super("Imovel",[
+      "destinacao",
+      "formaPagamento",
+      "indicadorImovelPublicoUniao",
+      "indicadorPagamentoDinheiro",
+      "indicadorPermutaBens",
+      "tipoOperacaoImobiliaria",
+      "tipoParteTransacionada",
+      "tipoServico",
+      "valorParteTransacionada"
+    ]);
+    this.ato = ato; // TODO: validate this
+    this.#alienacao = new Operacao("Alienação");
+    this.#aquisicao = new Operacao("Aquisição");
+    this.#outrosMunicipios = new MunicipioList();
+  }
+
+  get alienantes() { return this.ato.alienantes; }
+  get adquirentes() { return this.ato.adquirentes; }
+  get subjects() { return [
+      ...this.ato.adquirentesList,
+      ...this.ato.alienantesList
+  ];}
+  get alienacao() { return this.#alienacao; }
+  get aquisicao() { return this.#aquisicao; }
+  get outrosMunicipios() {
+    // TODO
+  }
+
+  get participantes(operacao) {
+    const parts = [];
+    const op = operacao.list;
+    for (const ni of Object.keys(op)) {
+      const subj = this.subjects.find(s => s.ni.value === ni);
+      if (subj !== null) {
+        const part = { "ni": ni, participacao: op[ni] }
+        for (const prop of Object.keys(subj))
+        if (subj[prop] instanceof DoiProp)
+          part[prop] = subj[prop].value;
+        parts.push(part);
+      }
+    }
+    return parts;
+  }
+
+  get doi() {
+    const doi = {};
+    for (const propName of Object.keys(doiDefs[this.schemaName]))
+      doi[propName] = this[propName].value;
+    doi.alienantes = this.participantes(this.alienacao);
+    doi.adquirentes = this.participantes(this.aquisicao);
+    return doi;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.#aquisicao.view);
+    container.add(this.#alienacao.view);
+    //TODO: add outrosMunicipios
+    return container;
+  }
+
+/*
+  addMunicipio(codigoIbge) {
+    if (typeof codigoIbge === "string"
+      && /^\d{7}$/.test(codigoIbge))
+      this.#outrosMunicipios.add(codigoIbge);
+  }
+
+  removeMunicipio(codigoIbge) {
+    if (typeof codigoIbge === "string"
+      && /^\d{7}$/.test(codigoIbge))
+      this.#outrosMunicipios.delete(codigoIbge);
+  }
+*/
+  isConsistent() {
+    return (this.#alienacao.isValid()
+      && this.#aquisicao.isValid());
+  }
+}
+
+class ImovelList {
+  constructor(act) {
+    this.pager = new Pager("Imóveis");
+    this.act = act;
+    this.items = [];
+    this.pager.addBtn.setAction(() => {
+      const newImovel = new Imovel(this.act);
+      this.items.push(newImovel);
+      this.pager.addPage(newImovel.view);
+    });
+  }
+  get view() { return this.pager; }
+  get list() {
+    const validImoveis = [];
+    for (const imovel of this.items)
+      if (this.pager.exists(imovel.view) && imovel.isValid())
+        validImoveis.push(imovel);
+    return validImoveis;
+  }
+}
+
+class Ato extends DoiEntity {
+  static entity = "Ato";
+  constructor() {
+    super("Ato",[
+      "dataLavraturaRegistroAverbacao",
+      "dataNegocioJuridico",
+      "tipoDeclaracao",
+      "tipoServico",
+    ]);
+    this.alienantes = new SubjectList("Alienantes");
+    this.adquirentes = new SubjectList("Adquirentes");
+    this.imoveis = new ImovelList(this);
+  }
+
+  get alienantesList() { return this.alienantes.list; }
+  get adquirentesList() { return this.adquirentes.list; }
+  get imoveisList() { return this.imoveis.list; };
+  get declaracoes() {
+    const declaracoes = [];
+    const doiList = this.imoveisList;
+    for (const imovel of doiList) declaracoes.push(imovel.doi);
+    return declaracoes;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.alienantes.view);
+    container.add(this.adquirentes.view);
+    container.add(this.imoveis.view);
+    return container;
+  }
+
+  json() {
+    return JSON.stringify({ "declaracoes": this.declaracoes });
+  }
+
+  // TODO
+  isConsistent() { return true; }
+}
+
 // GLOBAL AND ENVIRONMENT VARIABLES
 
 const doiDefs=JSON.parse(doiJson);
 
 // CONTROLLER
 
-class App {
-  // TODO...
-}
-
-class OldApp {
+class DoiMaker {
   constructor() {
+    this.pager = new Pager("Atos");
+    this.nav = this.pager.nav;
+    this.entries = this.pager.nav.items;
+    this.items = new Map();
+    this.pager.addBtn.setAction(() => {
+      const newAct = new Ato();
+      this.items.set(newAct.view,newAct);
+      this.pager.addPage(newAct.view);
+      const newEntry = this.entries[this.nav.last];
+      newEntry.delBtn.setAction(() => {
+        this.items.delete(newAct.view); 
+        this.nav.removeItem(newEntry);
+      });
+    });
     this.saveButton = new ControlButton("Salvar");
-    this.resumeButton = new ControlButton("Carregar");
     this.downloadButton = new ControlButton("Download");
+    this.resumeButton = new ControlButton("Carregar");
     this.uploadButton = new ControlButton("Upload");
     this.saveButton.setAction(() => this.save());
-    this.resumeButton.setAction(() => this.resume());
     this.downloadButton.setAction(() => this.download());
-    this.uploadButton.setAction(() => this.upload());
-//    this.idlist = [];
-    const act = new Ato();
-    this.acts = [act];
-    this.pager = new PagerComponent();
-    this.pager.setDefault(act.view.html);
-    this.pager.new();
-    this.view = this.render();
+//    this.resumeButton.setAction(() => this.resume());
+//    this.uploadButton.setAction(() => this.upload());
+    this.btnLine = new Row();
+    this.btnLine.add(this.saveButton);
+    this.btnLine.add(this.resumeButton);
+    this.btnLine.add(this.downloadButton);
+    this.btnLine.add(this.uploadButton);
+    this.container = new TitledBlock("DOImaker");
+    this.container.add(this.pager);
+    this.container.add(this.btnLine);
   }
-
-  new() {
-    const act = new Ato();
-    this.acts.push(act);
-    this.pager.new();
-  }
-
-  add(act) {
-    this.acts.push(act);
-    this.pager.add(act.view.html);
-  }
-
-  load(doiList) {
-    const actIdList = [];
-    const actList = [];
-    for (const doi of doiList) {
-      const actId = `${doi.numeroLivro}-${doi.folha}`;
-      if (actIdList.has(actId))
-        ato = actList[actIdList.indexOf(actId)];
-      else {
-        ato = new Ato();
-        actList.push(ato);
-        actIdList.push(actId);
-      }
-      const imovel = new Imovel();
-      ato.addImovel(imovel);
-      for (const propName in Object.keys(doi)) {
-        if (propName === 'alienantes') {
-          // TODO: add subject to ato and operation to imovel... 
-        }
-        else if (propName === 'adquirentes') {
-          // TODO: add subject to ato and operation to imovel... 
-        }
-        else if (imovel.schema.hasOwnProperty(propName)) {
-          imovel.setProp(propName, doi[propName]);
-        }
-        else if (ato.schema.hasOwnProperty(propName)) {
-          ato.setProp(propName, doi[propName]);
-        }
-        else throw new Error("Unknown property.");
-      }
-
-    }
-    for (const prop in doiObject) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = this[prop].value;
-      }
-    }
-    for (const prop in imovel) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = imovel[prop].value;
-      }
-    }
-    doiObj.alienantes=[];
-    for (const ni in imovel.alienacao) {
-      const alienante = { "participacao": imovel.alienacao[ni] };
-      const person = this.getAlienanteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          alienante[prop.name] = person[prop].value;
-      }
-      doiObj.alienantes.push(alienante);
-    }
-    doiObj.adquirentes=[];
-    for (const ni in imovel.aquisicao) {
-      const adquirente = { "participacao": imovel.aquisicao[ni] };
-      const person = this.getAdquirenteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          adquirente[prop] = person[prop].value;
-      }
-      doiObj.adquirentes.push(adquirente);
-    }
-    return doiObj;
-  }
-
-  render() {
-    const container = new ColumnComponent();
-    container.add(this.pager);
-    const controlRow = new RowComponent();
-    controlRow.add(this.saveButton);
-    controlRow.add(this.resumeButton);
-    controlRow.add(this.downloadButton);
-    controlRow.add(this.uploadButton);
-    container.add(controlRow);
-    return container.html;
-  }
-
+  get view() { return this.container; }
   get object() {
-    const doiObj = { "declaracoes": [] };
-    for (const act of this.acts) {
-      for (const imovel of act.imoveis) {
-        doiObj.declaracoes.push(act.generateDoi(imovel));
-      }
-    }
-    return doiObj;
+    const doiJson = [];
+    for (const act of this.items.values())
+    // TODO: maybe validate before this
+      act.declaracoes.forEach((dec) => doiJson.push(dec));
+    return { "declaracoes": doiJson };
   }
-
+  get json() { return JSON.stringify(this.object); }
   save() { saveObject(this.object,"draftDoi"); }
-  resume() { loadObject("draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
-  upload() { this.load(readJson("doi.json").declaracoes); }
+  // TODO: resume and upload
+//  resume() { loadObject("draftDoi"); }
+//  upload() { this.load(readJson("doi.json").declaracoes); }
 
   init() {
-    document.getElementById("app").appendChild(this.view);
+    document.getElementById("app").appendChild(this.view.html);
   }
 }
 
 // ENTRYPOINT
 
-const doimaker = new App();
-//doimaker.init();
-
+const doimaker = new DoiMaker();
+doimaker.init();
