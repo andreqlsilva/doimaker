@@ -833,8 +833,10 @@ class TextualElement extends DisplayElement {
   static className = "TextualElement";
   constructor(title) {
     super(title);
-    this.html.textContent = this.title; 
+    this._title = title ?? "[title]";
+    this.html.textContent = this._title; 
   }
+  get title() { return this._title; }
   set title(newTitle) {
     this._title = newTitle ?? "[title]";
     this.html.textContent = this._title;
@@ -1156,7 +1158,7 @@ class PagerPane extends Block {
   }
   add(newPage) {
     super.add(newPage);
-    newPage.hide();
+    if (this.last > 0) newPage.hide();
   }
   remove(index) {
     super.remove(index);
