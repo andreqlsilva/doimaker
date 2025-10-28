@@ -1,6 +1,12 @@
 // BEGIN SCHEMA
 const doiJson = `{
   "Adquirente": {
+    "ni": {
+      "type": "string",
+      "description": "Identificador da parte",
+      "minLength": 11,
+      "maxLength": 14
+    },
     "cpfConjuge": {
       "type": "string",
       "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)",
@@ -60,12 +66,6 @@ const doiJson = `{
         }
       ]
     },
-    "ni": {
-      "type": "string",
-      "description": "Identificador da parte",
-      "minLength": 11,
-      "maxLength": 14
-    },
     "regimeBens": {
       "info": "RegimeBens",
       "description": "Informar o regime de bens no casamento",
@@ -91,6 +91,12 @@ const doiJson = `{
     }
   },
   "Alienante": {
+    "ni": {
+      "type": "string",
+      "description": "Identificador da parte",
+      "minLength": 11,
+      "maxLength": 14
+    },
     "cpfConjuge": {
       "type": "string",
       "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)",
@@ -149,12 +155,6 @@ const doiJson = `{
           "title": "Não consta no documento"
         }
       ]
-    },
-    "ni": {
-      "type": "string",
-      "description": "Identificador da parte",
-      "minLength": 11,
-      "maxLength": 14
     },
     "regimeBens": {
       "info": "RegimeBens",
@@ -939,6 +939,7 @@ class CheckboxInput extends UIComponent {
   constructor() {
     super();
     this.html.setAttribute("type", "checkbox");
+    this.value = false;
   }
   set value(newValue) {
     if (typeof newValue === "boolean")
@@ -1318,8 +1319,24 @@ class DoiProp {
     this.view = this.render();
   }
 
-  forceValue(propValue) { this.value = propValue; }
-  setValue(propValue) { this.value = this.validate(propValue); }
+  forceValue(propValue) { 
+    this.value = propValue;
+//    console.log(`${this.name} is now ${this.value}`);
+  }
+  setValue(propValue) {
+    this.value = this.validate(propValue);
+//    console.log(`${this.name} is now ${this.value}`);
+  }
+
+  get value() {
+    if (this.view.value != null)
+      this._value = this.view.value;
+    return this._value;
+  }
+
+  set value(newValue) {
+    this._value = newValue;
+  }
 
   validate(propValue) { // nullify invalid data
     if (typeof propValue !== this.schema.type) {
@@ -1544,23 +1561,29 @@ class SubjectList {
     else
       throw new Error("Invalid position.");
     this.pager = new Pager(title);
-    this.items = [];
+    this.items = new Map();
     this.pager.addBtn.setAction(() => {
       const newSubj = new Subject(this.position);
-      this.items.push(newSubj);
+      this.items.set(newSubj.view,newSubj);
       this.pager.addPage(newSubj.view);
+      const newEntry = this.pager.nav.items[this.pager.nav.last];
+      newEntry.delBtn.setAction(() => {
+        this.items.delete(newSubj.view);
+        this.pager.nav.removeItem(newEntry);
+      });
     });
   }
   get view() { return this.pager; }
   get list() {
     const validSubjects = [];
-    for (const subject of this.items)
-      if (this.pager.exists(subject.view) && subject.isValid())
-        validSubjects.push(subject);
+    for (const subjectView of this.pager.pane.items) {
+      // TODO: validation
+        validSubjects.push(this.items.get(subjectView));
+    }
     return validSubjects;
   }
   getSubjectByNi(ni) {
-    for (const subject of this.items)
+    for (const subject of this.items.values())
       if (subject.ni.value === ni) return subject;
   }
 }
@@ -1626,7 +1649,7 @@ class Imovel extends DoiEntity {
   #aquisicao;
   #outrosMunicipios;
   static entity = "Imovel";
-  constructor(ato) {
+  constructor(alienantes, adquirentes) {
     super("Imovel",[
       "destinacao",
       "formaPagamento",
@@ -1638,17 +1661,16 @@ class Imovel extends DoiEntity {
       "tipoServico",
       "valorParteTransacionada"
     ]);
-    this.ato = ato; // TODO: validate this
+    this.alienantes = alienantes;
+    this.adquirentes = adquirentes;
     this.#alienacao = new Operacao("Alienação");
     this.#aquisicao = new Operacao("Aquisição");
     this.#outrosMunicipios = new MunicipioList();
   }
 
-  get alienantes() { return this.ato.alienantes; }
-  get adquirentes() { return this.ato.adquirentes; }
   get subjects() { return [
-      ...this.ato.adquirentesList,
-      ...this.ato.alienantesList
+      ...this.adquirentesList,
+      ...this.alienantesList
   ];}
   get alienacao() { return this.#alienacao; }
   get aquisicao() { return this.#aquisicao; }
@@ -1661,7 +1683,7 @@ class Imovel extends DoiEntity {
     const op = operacao.list;
     for (const ni of Object.keys(op)) {
       const subj = this.subjects.find(s => s.ni.value === ni);
-      if (subj !== null) {
+      if (subj != null) {
         const part = { "ni": ni, participacao: op[ni] }
         for (const prop of Object.keys(subj))
         if (subj[prop] instanceof DoiProp)
@@ -1678,6 +1700,7 @@ class Imovel extends DoiEntity {
       doi[propName] = this[propName].value;
     doi.alienantes = this.participantes(this.alienacao);
     doi.adquirentes = this.participantes(this.aquisicao);
+    //console.log(doi);
     return doi;
   }
 
@@ -1711,20 +1734,30 @@ class Imovel extends DoiEntity {
 class ImovelList {
   constructor(act) {
     this.pager = new Pager("Imóveis");
-    this.act = act;
-    this.items = [];
+    this.items = new Map();
+    this.alienantes = act.alienantes;
+    this.adquirentes = act.adquirentes;
     this.pager.addBtn.setAction(() => {
-      const newImovel = new Imovel(this.act);
-      this.items.push(newImovel);
+      const newImovel =
+        new Imovel(this.alienantes, this.adquirentes);
+      this.items.set(newImovel.view,newImovel);
       this.pager.addPage(newImovel.view);
+      const newEntry = this.pager.nav.items[this.pager.nav.last];
+      newEntry.delBtn.setAction(() => {
+        this.items.delete(newImovel.view);
+        this.pager.nav.removeItem(newImovel);
+      });
     });
   }
   get view() { return this.pager; }
   get list() {
     const validImoveis = [];
-    for (const imovel of this.items)
-      if (this.pager.exists(imovel.view) && imovel.isValid())
-        validImoveis.push(imovel);
+    //console.log(JSON.stringify(this.items));
+    for (const imovelView of this.pager.pane.items) {
+      //TODO: validation
+        validImoveis.push(this.items.get(imovelView));
+    }
+    console.log(validImoveis);
     return validImoveis;
   }
 }
@@ -1811,9 +1844,12 @@ class DoiMaker {
   get view() { return this.container; }
   get object() { // this is apparently not working
     const doiJson = [];
-    for (const act of this.items.values())
-    // TODO: maybe validate before this
+    //console.log(JSON.stringify(this.items.values()));
+    for (const act of this.items.values()) {
+      // TODO: maybe validate before this
+      //console.log(`act = ${JSON.stringify(act.declaracoes)}`);
       act.declaracoes.forEach((dec) => doiJson.push(dec));
+    }
     return { "declaracoes": doiJson };
   }
   get json() { return JSON.stringify(this.object); }
