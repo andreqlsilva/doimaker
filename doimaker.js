@@ -1129,7 +1129,7 @@ class EditableList extends TitledBlock {
     if (newEntry != null && newEntry instanceof ListEntry) {
       super.add(newEntry);
       newEntry.delBtn.setAction(() => this.removeItem(newEntry));
-      newEntry.line.html.addEventListener("click",
+      newEntry.html.addEventListener("click",
         () => this.select(this.indexOf(newEntry)));
     }
     else throw new Error("Invalid list entry.")
@@ -1221,7 +1221,7 @@ class Pager extends DualPane {
     this.addBtn = this.nav.addBtn;
     // addBtn action set by parent
     this.setLeft(this.nav);
-    this.setRight(this.nav.pane);
+    this.setRight(this.pane);
   }
   addPage(newPage) {
     if (newPage?.ui) this.nav.add(newPage);
@@ -1498,7 +1498,6 @@ class Subject extends DoiEntity {
       "indicadorNiIdentificado"
     ]);
     this.#representantes = new RepList();
-    this.view = this.render();
   }
 
   get representantes() {
@@ -1810,7 +1809,7 @@ class DoiMaker {
     this.container.add(this.btnLine);
   }
   get view() { return this.container; }
-  get object() {
+  get object() { // this is apparently not working
     const doiJson = [];
     for (const act of this.items.values())
     // TODO: maybe validate before this

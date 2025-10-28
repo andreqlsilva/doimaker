@@ -1,0 +1,364 @@
+/* === GLOBAL STYLES === */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  background-color: #f4f7f6;
+  color: #333;
+  margin: 0;
+  padding: 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Center the main app container */
+#app {
+  max-width: 1400px;
+  margin: 20px auto;
+}
+
+/* === LAYOUT COMPONENTS === */
+
+/* Base container for most components */
+.Block {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 10px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* A horizontal flex container */
+.Row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  /* Rows inside blocks shouldn't have the block styling */
+  border: none;
+  background-color: transparent;
+  padding: 5px 0;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+/* A vertical flex container for forms */
+.Form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* A 2-column flex layout */
+/* Applies to DualPane and Pager (which extends DualPane) */
+.DualPane,
+.Pager {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  /* These are layout containers, so override block styles */
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+  margin-bottom: 10px;
+}
+
+/* --- Children of a base DualPane --- */
+.DualPane > .Block {
+  min-width: 0; /* Allows panes to shrink */
+}
+/* Left pane (1/7) */
+.DualPane > .Block:first-child {
+  flex: 1;
+}
+/* Right pane (6/7) */
+.DualPane > .Block:last-child {
+  flex: 6;
+}
+
+/* === TEXT & DISPLAY COMPONENTS === */
+
+h1,
+h2,
+h3,
+p,
+label {
+  margin: 0;
+  padding: 0;
+}
+
+.HeaderElement {
+  margin-top: 15px;
+  margin-bottom: 10px;
+  color: #111;
+}
+
+h1.HeaderElement {
+  font-size: 2em;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 5px;
+}
+h2.HeaderElement {
+  font-size: 1.75em;
+}
+h3.HeaderElement {
+  font-size: 1.5em;
+  color: #222;
+}
+
+.LabelElement {
+  font-weight: 600;
+  margin-right: 5px;
+  display: block;      /* Forces the label to take its own line */
+  margin-bottom: 5px;  /* Adds a small space below the label */
+}
+
+/* Labels in a Form stack on top of their inputs */
+.Form .LabelElement {
+  display: block;
+  margin-bottom: 3px;
+}
+
+/* === INPUT & CONTROL COMPONENTS === */
+
+/* Common styles for all inputs */
+.InputElement,
+.MenuInput,
+.FilePicker {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.InputElement:focus,
+.MenuInput:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* Tell ALL direct children of a Row to share space */
+.Row > .Block,
+.Row > .InputElement,
+.Row > .MenuInput,
+.Row > .LabelElement,
+.Row > .ControlButton {
+  width: auto; /* Override width: 100% */
+  flex-grow: 0; /* Default: don't grow */
+  flex-shrink: 0; /* Default: don't shrink */
+}
+
+/* Now, make specific children inside a Row grow */
+.Row > .InputElement,
+.Row > .MenuInput,
+.Row > .Row { /* Make inner Rows (like ListEntry's line) grow */
+  flex-grow: 1;
+}
+
+.CheckboxInput {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  accent-color: #007bff;
+}
+
+.ControlButton {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.ControlButton:hover {
+  background-color: #0056b3;
+}
+
+.ControlButton:active {
+  transform: translateY(1px);
+}
+
+/* === COMPOSITE COMPONENTS === */
+
+/* Blocks with a distinct header bar */
+.TitledBlock {
+  border-color: #ccc;
+}
+
+.BlockTitle {
+  /* This is a .Row, so it's already flex */
+  justify-content: space-between; /* Pushes title and buttons apart */
+  align-items: center;
+  background-color: #f9f9f9;
+  padding: 12px 15px;
+  /* Bleed to edges of parent padding */
+  margin: -15px -15px 15px -15px;
+  border-bottom: 1px solid #ccc;
+  border-radius: 8px 8px 0 0;
+  flex-wrap: nowrap; /* Forces the title and button to stay on one line */
+}
+
+/* This targets the "titleLine" (a Row) inside the BlockTitle */
+.BlockTitle > .Row {
+  flex-grow: 1;     /* Let the title row grow */
+  flex-shrink: 1;   /* Allow the title row to shrink */
+  min-width: 0;     /* CRITICAL: Allows shrinking below content size */
+}
+
+/* This adds the "..." for long titles like "Alienantes" */
+.BlockTitle .TextualElement {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 10px; /* Adds space between text and button */
+  font-weight: 700;
+  font-size: 1.25em;
+}
+
+/* Main App Title */
+.DoiMaker > .BlockTitle {
+  background-color: #343a40;
+  color: white;
+  border-bottom: none;
+}
+
+/* --- EditableList --- */
+.EditableList {
+  background-color: #fdfdfd;
+}
+
+/* Style the '+' (add) button in the list header */
+.EditableList > .BlockTitle .ControlButton {
+  background-color: #28a745;
+  min-width: 40px; /* Give it a nice roundish shape */
+}
+.EditableList > .BlockTitle .ControlButton:hover {
+  background-color: #218838;
+}
+
+/* A single entry in the list */
+.ListEntry {
+  /* It's a .Row, so it's flex */
+  border: 1px solid #eee;
+  border-radius: 5px;
+  padding: 5px 10px;
+  margin-bottom: 8px;
+  background-color: #fff;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  justify-content: space-between;
+  position: relative;
+}
+
+/* The main clickable part of the list entry */
+.ListEntry > .Row:first-child {
+  cursor: pointer;
+  flex-grow: 1; /* Make the clickable part take up space */
+  padding: 5px;
+  border: none;
+  box-shadow: none;
+}
+
+/* Style the '-' (delete) button */
+.ListEntry .ControlButton {
+  background-color: #dc3545;
+  min-width: 40px;
+  margin-left: 10px;
+}
+.ListEntry .ControlButton:hover {
+  background-color: #c82333;
+}
+
+/* * This targets a ControlButton that is a *direct child* * of a ListEntry, which is your delete button.
+*/
+.ListEntry > .ControlButton {
+  position: absolute;
+  right: 10px;  /* 10px from the right edge */
+  top: 50%;     /* 50% down from the top */
+  transform: translateY(-50%); /* This centers it vertically */
+  padding: 5px 12px;  /* Reduces vertical padding */
+  font-size: 0.9rem;    /* Makes the text slightly smaller */
+}
+
+.Pager > .PagerNav {
+  flex: 1; /* 20% ratio */
+  max-width: 350px; 
+  background-color: #fcfcfc;
+  min-width: 0; /* This was from your code */
+
+  /* --- NEW MIN-WIDTH --- */
+  /* This protects the nav from shrinking too much. */
+  /* Adjust this value if it's too big or small. */
+  min-width: 280px; 
+}
+
+.Pager > .Pager:last-child {
+  flex: 4; /* 80% ratio */
+  background-color: #fff;
+  border-left: 1px solid #e0e0e0;
+
+  /* --- NEW/IMPORTANT --- */
+  /* This ensures the right pane CAN shrink and won't overlap */
+  min-width: 0; 
+}
+
+/* --- Pager Pane Header Font Size Reduction --- */
+
+/* Targets H1 headers inside the PagerPane (right side) */
+.Pager > .Pager h1.HeaderElement {
+  font-size: 1.5em; /* Default was 2em */
+}
+
+/* Targets H2 headers inside the PagerPane */
+.Pager > .Pager h2.HeaderElement {
+  font-size: 1.25em; /* Default was 1.75em */
+}
+
+/* Targets H3 headers inside the PagerPane */
+.Pager > .Pager h3.HeaderElement {
+  font-size: 1.15em; /* Default was 1.5em */
+}
+
+.PagerNav {
+  border: none;
+  box-shadow: none;
+}
+
+/* --- RepList (Representantes) --- */
+.RepList .ListEntry .LabelElement {
+  flex-shrink: 0; /* Don't let the label shrink */
+}
+.RepList .ListEntry .TextInput {
+  flex-grow: 2; /* Let the input field take up most of the space */
+}
+
+/* === STATE CLASSES === */
+
+/* The 'hidden' attribute used by .show() and .hide() */
+[hidden] {
+  display: none !important;
+}
+
+/* The .picked class for selected list items */
+.ListEntry.picked {
+  background-color: #e6f7ff;
+  border-color: #007bff;
+}
+
+.ListEntry.picked .TextualElement {
+  font-weight: 700;
+  color: #0056b3;
+}
