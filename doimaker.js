@@ -869,7 +869,7 @@ class InputElement extends UIComponent {
   static type = "text";
   static className = "InputElement";
   static isValid = (newInput) => {
-    return (newInput != null);
+    return true || (newInput != null);
   }
   #defaultValue;
   constructor(defaultValue) {
@@ -891,14 +891,15 @@ class InputElement extends UIComponent {
     else throw new Error("Invalid default.");
   }
   reset() { this.html.value = this.defaultValue; }
-  isValid() { return this.constructor.isValid(this.value); }
+  //isValid() { return this.constructor.isValid(this.value); }
+  isValid() { return true; }
 }
 
 class TextInput extends InputElement { 
   static type = "text";
   static className = "TextInput";
   static isValid = (newInput) => {
-    return (typeof newInput === "string");
+    return true || (typeof newInput === "string");
   };
   constructor(defaultText) {
     super(defaultText ?? "");
@@ -909,9 +910,9 @@ class NumberInput extends InputElement {
   static type = "number";
   static className = "NumberInput";
   static isValid = (newInput) => {
-    if (newInput == null || newInput === "") return false;
+    if (newInput == null || newInput === "") return true;
     const n = Number(newInput);
-    return (Number.isFinite(n))
+    return true || (Number.isFinite(n));
   };
   constructor(defaultValue) {
     super(defaultValue ?? 0);
@@ -928,7 +929,7 @@ class DateInput extends InputElement {
   static type = "date";
   static className = "DateInput";
   static isValid = (newInput) => {
-    return (newInput != null
+    return true || (newInput != null
       && typeof newInput === "string"
       && (newInput === ""
         || !isNaN(Date.parse(newInput)))
@@ -1306,11 +1307,9 @@ class DoiProp {
 
   forceValue(propValue) { 
     this.value = propValue;
-//    console.log(`${this.name} is now ${this.value}`);
   }
   setValue(propValue) {
     this.value = this.validate(propValue);
-//    console.log(`${this.name} is now ${this.value}`);
   }
 
   get value() {
@@ -1410,8 +1409,7 @@ class DoiEntity {
     }
   }
 
-  get view() { return this.render(); }
-  render() {
+  render() { // assign to this.view (in subclasses only)
     const container = new Block();
     container.add(new H3Element(this.schemaName))
     for (const propName of Object.keys(this)) {
@@ -1451,7 +1449,8 @@ class DoiEntity {
   isConsistent() { return true; }
 
   isValid() {
-    return this.isComplete() && this.isConsistent();
+  //  return this.isComplete() && this.isConsistent();
+  return true;
   }
 }
 
@@ -1499,6 +1498,7 @@ class Subject extends DoiEntity {
       "indicadorNiIdentificado"
     ]);
     this.#representantes = new RepList();
+    this.view = this.render();
   }
 
   get representantes() {
@@ -1619,7 +1619,8 @@ class Operacao {
     else return false;
   }
   isValid() {
-    return (this.total>=98 && this.total <=100);
+  //  return (this.total>=98 && this.total <=100);
+    return true;
   }
 }
 
@@ -1649,6 +1650,7 @@ class Imovel extends DoiEntity {
     this.#alienacao = new Operacao("Alienação");
     this.#aquisicao = new Operacao("Aquisição");
     this.#outrosMunicipios = new MunicipioList();
+    this.view = this.render();
   }
 
   get subjects() { return [
@@ -1683,7 +1685,6 @@ class Imovel extends DoiEntity {
       doi[propName] = this[propName].value;
     doi.alienantes = this.participantes(this.alienacao);
     doi.adquirentes = this.participantes(this.aquisicao);
-    //console.log(doi);
     return doi;
   }
 
@@ -1734,12 +1735,9 @@ class ImovelList {
   get view() { return this.pager; }
   get list() {
     const validImoveis = [];
-    //console.log(JSON.stringify(this.items));
-    for (const imovelView of this.pager.pane.items) {
-      //TODO: validation
+    for (const imovelView of this.pager.pages.values()) {
         validImoveis.push(this.items.get(imovelView));
     }
-    console.log(validImoveis);
     return validImoveis;
   }
 }
@@ -1756,6 +1754,7 @@ class Ato extends DoiEntity {
     this.alienantes = new SubjectList("Alienantes");
     this.adquirentes = new SubjectList("Adquirentes");
     this.imoveis = new ImovelList(this);
+    this.view = this.render();
   }
 
   get alienantesList() { return this.alienantes.list; }
@@ -1825,10 +1824,8 @@ class DoiMaker {
   get view() { return this.container; }
   get object() { // this is apparently not working
     const doiJson = [];
-    //console.log(JSON.stringify(this.items.values()));
     for (const act of this.items.values()) {
       // TODO: maybe validate before this
-      //console.log(`act = ${JSON.stringify(act.declaracoes)}`);
       act.declaracoes.forEach((dec) => doiJson.push(dec));
     }
     return { "declaracoes": doiJson };
