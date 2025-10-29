@@ -1573,10 +1573,11 @@ class Operacao {
   constructor(title) {
     this.inputs = new Map();
     const validTitle = title==null ? "Operação" : title;
+    //this.subjectList = [];
     this.view = new EditableList(validTitle);
     this.view.addBtn.setAction(() => {
       const label1 = new LabelElement("Participante: ");
-      const subject = new MenuInput();
+      const subject = new TextInput(); // TODO: create menu
       // Menu items must be managed by parent
       const label2 = new LabelElement("%: ");
       const participation = new NumberInput(0);
@@ -1645,15 +1646,20 @@ class Imovel extends DoiEntity {
     this.alienantes = alienantes;
     this.adquirentes = adquirentes;
     this.#alienacao = new Operacao("Alienação");
+    // implement menu of alienantes here!
     this.#aquisicao = new Operacao("Aquisição");
+    // implement menu of adquirentes here!
     this.#outrosMunicipios = new MunicipioList();
     this.view = this.render();
   }
 
+  /*
   get subjects() { return [
       ...this.adquirentesList,
       ...this.alienantesList
   ];}
+  */
+
   get alienacao() { return this.#alienacao; }
   get aquisicao() { return this.#aquisicao; }
   get outrosMunicipios() {
@@ -1664,14 +1670,13 @@ class Imovel extends DoiEntity {
     const parts = [];
     const op = operacao.list;
     for (const ni of Object.keys(op)) {
-      const subj = this.subjects.find(s => s.ni.value === ni);
-      if (subj != null) {
+/*      const subj = this.subjects.find(s => s.ni.value === ni);
+      if (subj != null) {*/
         const part = { "ni": ni, participacao: op[ni] }
-        for (const prop of Object.keys(subj))
+        /*for (const prop of Object.keys(subj))
         if (subj[prop] instanceof DoiProp)
-          part[prop] = subj[prop].value;
+          part[prop] = subj[prop].value;*/
         parts.push(part);
-      }
     }
     return parts;
   }
@@ -1687,8 +1692,15 @@ class Imovel extends DoiEntity {
 
   render() {
     const container = super.render();
-    container.add(this.#aquisicao.view);
     container.add(this.#alienacao.view);
+    container.add(this.#aquisicao.view);
+    /* TODO: manage subject menu in each operacao
+    this.#aquisicao.view.addButton.addAction( () => {
+    });
+    this.#alienacao.view.addButton.addAction( () => {
+
+    });
+    */
     //TODO: add outrosMunicipios
     return container;
   }
