@@ -916,6 +916,12 @@ class NumberInput extends InputElement {
   constructor(defaultValue) {
     super(defaultValue ?? 0);
   }
+  get value() { return Number(this.html.value); }
+  set value(newValue) {
+    if (this.constructor.isValid(newValue))
+      this.html.value = newValue;
+    else throw new Error("Invalid value.");
+  }
 }
 
 class DateInput extends InputElement {
@@ -1039,6 +1045,19 @@ class Block extends UIComponent {
   }
   indexOf(item) { return (this.items.indexOf(item)); }
   removeItem(item) { this.remove(this.indexOf(item)); }
+}
+
+class InputBlock extends Block {
+  static className = "InputBlock";
+  constructor(label,field) {
+    super();
+    if (!label.ui || !field.ui) throw new Error("Invalid.");
+    this.label = label;
+    this.field = field;
+    super.add(label);
+    super.add(field);
+  }
+  get value() { return this.field.value; }
 }
 
 class Row extends Block {
@@ -1350,8 +1369,7 @@ class DoiProp {
   }
 
   render() {
-    const container = new Block();
-    container.add(new LabelElement(this.label));
+    const label = new LabelElement(this.label);
     let field;
     if (this.schema.oneOf) {
       field = new MenuInput();
@@ -1374,7 +1392,7 @@ class DoiProp {
       field.html.addEventListener("input",
         () => this.setValue(field.value));
     }
-    container.add(field);
+    const container = new InputBlock(label,field);
     return container;
   }
 }
