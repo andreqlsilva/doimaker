@@ -869,7 +869,7 @@ class InputElement extends UIComponent {
   static type = "text";
   static className = "InputElement";
   static isValid = (newInput) => {
-    return true || (newInput != null);
+    return (newInput != null);
   }
   #defaultValue;
   constructor(defaultValue) {
@@ -891,15 +891,14 @@ class InputElement extends UIComponent {
     else throw new Error("Invalid default.");
   }
   reset() { this.html.value = this.defaultValue; }
-  //isValid() { return this.constructor.isValid(this.value); }
-  isValid() { return true; }
+  isValid() { return this.constructor.isValid(this.value); }
 }
 
 class TextInput extends InputElement { 
   static type = "text";
   static className = "TextInput";
   static isValid = (newInput) => {
-    return true || (typeof newInput === "string");
+    return (typeof newInput === "string");
   };
   constructor(defaultText) {
     super(defaultText ?? "");
@@ -912,7 +911,7 @@ class NumberInput extends InputElement {
   static isValid = (newInput) => {
     if (newInput == null || newInput === "") return true;
     const n = Number(newInput);
-    return true || (Number.isFinite(n));
+    return (Number.isFinite(n));
   };
   constructor(defaultValue) {
     super(defaultValue ?? 0);
@@ -929,7 +928,7 @@ class DateInput extends InputElement {
   static type = "date";
   static className = "DateInput";
   static isValid = (newInput) => {
-    return true || (newInput != null
+    return (newInput != null
       && typeof newInput === "string"
       && (newInput === ""
         || !isNaN(Date.parse(newInput)))
@@ -1449,8 +1448,7 @@ class DoiEntity {
   isConsistent() { return true; }
 
   isValid() {
-  //  return this.isComplete() && this.isConsistent();
-  return true;
+    return this.isComplete() && this.isConsistent();
   }
 }
 
@@ -1619,8 +1617,7 @@ class Operacao {
     else return false;
   }
   isValid() {
-  //  return (this.total>=98 && this.total <=100);
-    return true;
+    return (this.total>=98 && this.total <=100);
   }
 }
 
