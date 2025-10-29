@@ -1653,12 +1653,12 @@ class Imovel extends DoiEntity {
     this.view = this.render();
   }
 
-  /*
+  
   get subjects() { return [
-      ...this.adquirentesList,
-      ...this.alienantesList
+      ...this.adquirentes.list,
+      ...this.alienantes.list
   ];}
-  */
+  
 
   get alienacao() { return this.#alienacao; }
   get aquisicao() { return this.#aquisicao; }
@@ -1670,21 +1670,25 @@ class Imovel extends DoiEntity {
     const parts = [];
     const op = operacao.list;
     for (const ni of Object.keys(op)) {
-/*      const subj = this.subjects.find(s => s.ni.value === ni);
-      if (subj != null) {*/
+      const subj = this.subjects.find(s => s.ni.value === ni);
+      if (subj != null) {
         const part = { "ni": ni, participacao: op[ni] }
-        /*for (const prop of Object.keys(subj))
+        for (const prop of Object.keys(subj))
         if (subj[prop] instanceof DoiProp)
-          part[prop] = subj[prop].value;*/
+          if (subj[prop].value != 0 || subj.requiredList.includes(prop.name))
+            part[prop] = subj[prop].value;
         parts.push(part);
+      }
     }
     return parts;
   }
 
   get doi() {
     const doi = {};
-    for (const propName of Object.keys(doiDefs[this.schemaName]))
-      doi[propName] = this[propName].value;
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      if (this[propName].value!= 0 || this.requiredList.includes(propName))
+        doi[propName] = this[propName].value;
+    }
     doi.alienantes = this.participantes(this.alienacao);
     doi.adquirentes = this.participantes(this.aquisicao);
     return doi;
@@ -1843,7 +1847,7 @@ class DoiMaker {
   save() { saveObject(this.object,"draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
   // TODO: resume and upload
-//  resume() { loadObject("draftDoi"); }
+  // resume() { loadObject("draftDoi"); }
 //  upload() { this.load(readJson("doi.json").declaracoes); }
 
   init() {
