@@ -1002,6 +1002,11 @@ class ControlButton extends UIComponent {
   }
   setAction(actionFunction) {
     if (actionFunction instanceof Function) {
+      this.html.onclick = actionFunction;
+    }
+  }
+  addAction(actionFunction) {
+    if (actionFunction instanceof Function) {
       this.html.addEventListener("click", actionFunction);
     }
   }
@@ -1025,7 +1030,8 @@ class Block extends UIComponent {
     else throw new Error("Invalid new entry.");
   }
   remove(index) {
-    if (index == null || index<0 || index>this.last)
+    if (index < 0) return;
+    if (index == null || index>this.last)
       throw new Error("Invalid index.");
     this.html.removeChild(this.items[index].html);
     this.items.splice(index,1);
@@ -1119,7 +1125,8 @@ class EditableList extends TitledBlock {
     this.items.forEach((item)=>item.unpick());
   }
   select(index) {
-    if (index == null || index<0 || index>this.last)
+    if (index < 0) return;
+    if (index == null || index>this.last)
       throw new Error("Invalid index.");
     if (this.current >= 0)
       this.items[this.current].unpick();
@@ -1142,96 +1149,55 @@ class EditableList extends TitledBlock {
   }
 }
 
-class PagerPane extends Block {
-  static className = "Pager";
-  constructor() {
-    super();
-    this.current = -1;
-  }
-  select(index) {
-    if (this.last < 0) return;
-    if (index == null || index<0 || index>this.last)
-      throw new Error("Invalid index.");
-    if (this.current >= 0)
-      this.items[this.current].hide(); 
-    this.items[index].show();
-    this.current = index;
-  }
-  add(newPage) {
-    super.add(newPage);
-    if (this.last > 0) newPage.hide();
-  }
-  remove(index) {
-    super.remove(index);
-    if (index < this.current) this.current -= 1;
-    else if (index === this.current) {
-      // list empty
-      if (this.last < 0) this.current = -1;
-      // list not empty, removed first
-      else if (index === 0) this.select(0); 
-      // list not empty, removed non-first
-      else this.select(index-1);
-    }
-  }
-  toFirst() { this.select(0); }
-  toLast() { this.select(this.last); }
-  next() {
-    if (this.current < this.last)
-      this.select(this.current+1);
-  }
-  prev() {
-    if (this.current > 0)
-      this.select(this.current-1);
-  }
-}
-
-class PagerNav extends EditableList {
-  static className = "PagerNav"
-  constructor(title) {
-    super(title);
-    this.pane = new PagerPane();
-    this.pageCounter = 0;
-  }
-  select(index) {
-    super.select(index);
-    this.pane.select(index);
-  }
-  add(page) {
-    this.pane.add(page);
-    const idLine = new TextualElement(++this.pageCounter);
-    const entry = new ListEntry(idLine);
-    super.add(entry);
-  }
-  remove(index) {
-    super.remove(index);
-    this.items.forEach(
-      (entry, i) => entry.line.html.textContent = i + 1
-    );
-    this.pane.remove(index);
-    this.pageCounter-=1;
-  }
-}
-
 class Pager extends DualPane {
   static className = "Pager";
   constructor(title) {
     super();
-    this.nav = new PagerNav(title);
-    this.pane = this.nav.pane;
-    this.items = this.nav.items;
+    this.pane = new Block();
+    this.pages = new Map();
+    this.current = null;
+    this.nav = new EditableList(title);
     this.addBtn = this.nav.addBtn;
-    // addBtn action set by parent
+    // this.addBtn action set by parent
     this.setLeft(this.nav);
     this.setRight(this.pane);
   }
-  addPage(newPage) {
-    if (newPage?.ui) this.nav.add(newPage);
-    else throw new Error("Invalid new page.");
+  get firstEntry() { return this.pages.keys().next().value; }
+  addPage(newPage) { 
+    if (!(newPage?.ui)) throw new Error("Invalid new page.");
+    const newId = new TextualElement(this.nav.items.length+1);
+    const newEntry = new ListEntry(newId);
+    newEntry.html.addEventListener("click",
+      () => this.select(newEntry));
+    this.nav.add(newEntry);
+    newEntry.delBtn.addAction(() => this.removePage(newEntry));
+    this.pages.set(newEntry,newPage);
+    this.pane.add(newPage);
+    this.select(newEntry);
   }
-  removeCurrent() {
-    this.nav.remove(this.nav.current);
+  removePage(entry) {
+    if (entry != null) {
+      this.pane.removeItem(this.pages.get(entry));
+      this.nav.removeItem(entry);
+      this.nav.items.forEach((item,i) => item.line.title = i+1);
+      this.pages.delete(entry);
+      this.current = null;
+      if (this.firstEntry) this.select(this.firstEntry);
+    }
   }
-  exists(page) { return (this.pane.indexOf(page) !== -1);  }
+  select(entry) {
+    if (entry == null
+      || !this.pages.has(entry)
+      || entry === this.current)
+      return;
+    if (this.current !== null) {
+      this.current.unpick();
+      this.pages.get(this.current).hide();
+    }
+    this.nav.select(this.nav.items.indexOf(entry));
+    this.pages.get(entry).show();
+    this.current = entry;
+  }
 }
 
 // MODELS AND VIEWS 
@@ -1567,9 +1533,8 @@ class SubjectList {
       this.items.set(newSubj.view,newSubj);
       this.pager.addPage(newSubj.view);
       const newEntry = this.pager.nav.items[this.pager.nav.last];
-      newEntry.delBtn.setAction(() => {
+      newEntry.delBtn.addAction(() => {
         this.items.delete(newSubj.view);
-        this.pager.nav.removeItem(newEntry);
       });
     });
   }
@@ -1743,9 +1708,8 @@ class ImovelList {
       this.items.set(newImovel.view,newImovel);
       this.pager.addPage(newImovel.view);
       const newEntry = this.pager.nav.items[this.pager.nav.last];
-      newEntry.delBtn.setAction(() => {
+      newEntry.delBtn.addAction(() => {
         this.items.delete(newImovel.view);
-        this.pager.nav.removeItem(newImovel);
       });
     });
   }
@@ -1819,9 +1783,8 @@ class DoiMaker {
       this.items.set(newAct.view,newAct);
       this.pager.addPage(newAct.view);
       const newEntry = this.entries[this.nav.last];
-      newEntry.delBtn.setAction(() => {
+      newEntry.delBtn.addAction(() => {
         this.items.delete(newAct.view); 
-        this.nav.removeItem(newEntry);
       });
     });
     this.saveButton = new ControlButton("Salvar");
