@@ -794,6 +794,7 @@ async function readJson(fileobj) {
   }
 }
 
+
 // FRONTEND LIBRARY 
 
 class UIComponent { // extend only
@@ -1674,9 +1675,13 @@ class Imovel extends DoiEntity {
       if (subj != null) {
         const part = { "ni": ni, participacao: op[ni] }
         for (const prop of Object.keys(subj))
-        if (subj[prop] instanceof DoiProp)
-          if (subj[prop].value != 0 || subj.requiredList.includes(prop.name))
+        if (subj[prop] instanceof DoiProp) {
+          console.log(prop+'='+subj[prop].value);
+          if (subj[prop].value != 0
+            || subj.requiredList.includes(prop)) {
             part[prop] = subj[prop].value;
+          }
+        }
         parts.push(part);
       }
     }
@@ -1843,6 +1848,7 @@ class DoiMaker {
     }
     return { "declaracoes": doiJson };
   }
+
   get json() { return JSON.stringify(this.object); }
   save() { saveObject(this.object,"draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
