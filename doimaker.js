@@ -1,5 +1,143 @@
 // BEGIN SCHEMA
 const doiJson = `{
+  "Ato": {
+    "tipoDeclaracao": {
+      "info" : "TipoDeclaracao",
+      "description": "Tipo da declaração",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "0",
+          "title": "Original"
+        }
+      ]
+    },
+    "tipoServico" : {
+      "info": "TipoServico",
+      "type": "string",
+      "description": "Selecionar o tipo de serviço executado em relação à operação imobiliária declarada",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Notarial"
+        },
+        {
+          "const": "2",
+          "title": "Registro de Imóveis"
+        },
+        {
+          "const": "3",
+          "title": "Registro de títulos e documentos"
+        }
+      ]
+    },
+    "tipoAto": {
+      "info" : "TipoAto",
+      "description": "Selecionar o tipo do ato em função do tipo de cartório",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Escritura"
+        },
+        {
+          "const": "2",
+          "title": "Procuração"
+        },
+        {
+          "const": "3",
+          "title": "Averbação"
+        },
+        {
+          "const": "4",
+          "title": "Registro"
+        },
+        {
+          "const": "5",
+          "title": "Registros para fins de publicidade"
+        },
+        {
+          "const": "6",
+          "title": "Registro para fins de conservação"
+        }
+      ]
+    },
+    "naturezaTitulo": {
+      "info" : "NaturezaTitulo",
+      "type": "string",
+      "description": "Informar a natureza do título registrado",
+      "oneOf": [
+        {
+          "const": "2",
+          "title": "Escritura Pública"
+        },
+        {
+          "const": "1",
+          "title": "Instrumento particular com força de escritura pública"
+        },
+        {
+          "const": "3",
+          "title": "Título Judicial"
+        },
+        {
+          "const": "4",
+          "title": "Contratos ou termos administrativos"
+        },
+        {
+          "const": "5",
+          "title": "Atos autênticos de países estrangeiros"
+        }
+      ]
+    },
+    "dataLavraturaRegistroAverbacao": {
+      "type": "string",
+      "format": "date",
+      "description": "Informar a data de lavratura / registro / averbação"
+    },
+    "dataNegocioJuridico": {
+      "type": "string",
+      "format": "date",
+      "description": "Informar a data da celebração do negócio jurídico"
+    },
+    "numeroLivro": {
+      "type": "string",
+      "description": "Informar o número do livro em que o ato foi escriturado ou o título foi registrado",
+      "maxLength": 7
+    },
+    "folha": {
+      "type": "string",
+      "description": "Páginas/Folhas (indicar nº início-fim)",
+      "maxLength": 7
+    },
+    "existeDoiAnterior": {
+      "type": "boolean",
+      "description": "Informar se consta a expressão 'Emitida a DOI' no título registrado"
+    },
+    "matriculaNotarialEletronica": {
+      "type": "string",
+      "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD.",
+      "maxLength": 24
+    },
+    "tipoLivro": {
+      "info" : "TipoLivro",
+      "type": "string",
+      "description": "Selecionar o livro em que o ato foi escriturado dentre as opções da caixa",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Lv.2-Registro Geral(matrícula)"
+        },
+        {
+          "const": "2",
+          "title": "Transcrição das Transmissões"
+        }
+      ]
+    },
+    "retificacaoAto": {
+      "type": "boolean",
+      "description": "Informar se na operação atual houve retificação de ato anteriormente declarado"
+    }
+  },
   "Adquirente": {
     "ni": {
       "type": "string",
@@ -178,144 +316,6 @@ const doiJson = `{
     "indicadorRepresentante": {
       "type": "boolean",
       "description": "Indicador que sinaliza que o(s) alienante(s) outorgou (aram) mandato a pessoa física ou jurídica para representá-lo(s) na operação imobiliária informada pela serventia"
-    }
-  },
-  "Ato": {
-    "tipoDeclaracao": {
-      "info" : "TipoDeclaracao",
-      "description": "Tipo da declaração",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "0",
-          "title": "Original"
-        }
-      ]
-    },
-    "tipoServico" : {
-      "info": "TipoServico",
-      "type": "string",
-      "description": "Selecionar o tipo de serviço executado em relação à operação imobiliária declarada",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Notarial"
-        },
-        {
-          "const": "2",
-          "title": "Registro de Imóveis"
-        },
-        {
-          "const": "3",
-          "title": "Registro de títulos e documentos"
-        }
-      ]
-    },
-    "tipoAto": {
-      "info" : "TipoAto",
-      "description": "Selecionar o tipo do ato em função do tipo de cartório",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Escritura"
-        },
-        {
-          "const": "2",
-          "title": "Procuração"
-        },
-        {
-          "const": "3",
-          "title": "Averbação"
-        },
-        {
-          "const": "4",
-          "title": "Registro"
-        },
-        {
-          "const": "5",
-          "title": "Registros para fins de publicidade"
-        },
-        {
-          "const": "6",
-          "title": "Registro para fins de conservação"
-        }
-      ]
-    },
-    "naturezaTitulo": {
-      "info" : "NaturezaTitulo",
-      "type": "string",
-      "description": "Informar a natureza do título registrado",
-      "oneOf": [
-        {
-          "const": "2",
-          "title": "Escritura Pública"
-        },
-        {
-          "const": "1",
-          "title": "Instrumento particular com força de escritura pública"
-        },
-        {
-          "const": "3",
-          "title": "Título Judicial"
-        },
-        {
-          "const": "4",
-          "title": "Contratos ou termos administrativos"
-        },
-        {
-          "const": "5",
-          "title": "Atos autênticos de países estrangeiros"
-        }
-      ]
-    },
-    "dataLavraturaRegistroAverbacao": {
-      "type": "string",
-      "format": "date",
-      "description": "Informar a data de lavratura / registro / averbação"
-    },
-    "dataNegocioJuridico": {
-      "type": "string",
-      "format": "date",
-      "description": "Informar a data da celebração do negócio jurídico"
-    },
-    "numeroLivro": {
-      "type": "string",
-      "description": "Informar o número do livro em que o ato foi escriturado ou o título foi registrado",
-      "maxLength": 7
-    },
-    "folha": {
-      "type": "string",
-      "description": "Páginas/Folhas (indicar nº início-fim)",
-      "maxLength": 7
-    },
-    "existeDoiAnterior": {
-      "type": "boolean",
-      "description": "Informar se consta a expressão 'Emitida a DOI' no título registrado"
-    },
-    "matriculaNotarialEletronica": {
-      "type": "string",
-      "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD.",
-      "maxLength": 24
-    },
-    "tipoLivro": {
-      "info" : "TipoLivro",
-      "type": "string",
-      "description": "Selecionar o livro em que o ato foi escriturado dentre as opções da caixa",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Lv.2-Registro Geral(matrícula)"
-        },
-        {
-          "const": "2",
-          "title": "Transcrição das Transmissões"
-        }
-      ]
-    },
-    "retificacaoAto": {
-      "type": "boolean",
-      "description": "Informar se na operação atual houve retificação de ato anteriormente declarado"
     }
   },
   "Imovel": {
@@ -1781,7 +1781,18 @@ class Ato extends DoiEntity {
   get declaracoes() {
     const declaracoes = [];
     const doiList = this.imoveisList;
-    for (const imovel of doiList) declaracoes.push(imovel.doi);
+    const doiAto = {};
+    for (const prop of Object.keys(this)) {
+      if (this[prop] instanceof DoiProp
+        && (this[prop].value != 0
+          || this.requiredList.includes(prop))) {
+          doiAto[prop] = this[prop].value;
+      }
+    }
+    for (const imovel of doiList) {
+      // TODO: add all of doiAto's DoiProps
+      declaracoes.push(imovel.doi);
+    }
     return declaracoes;
   }
 
@@ -1840,7 +1851,7 @@ class DoiMaker {
     this.container.add(this.btnLine);
   }
   get view() { return this.container; }
-  get object() { // this is apparently not working
+  get object() {
     const doiJson = [];
     for (const act of this.items.values()) {
       // TODO: maybe validate before this
