@@ -1420,7 +1420,7 @@ class RepList {
     const representantes = [];
     for (const rep of this.inputs) {
       const ni = rep.value;
-      if (Subject.validate(ni))
+      if (true || Subject.validate(ni))
         representantes.push({"ni": ni});
     }
     return representantes;
@@ -1626,6 +1626,9 @@ class Imovel extends DoiEntity {
             || subj.requiredList.includes(prop)) {
             part[prop] = subj[prop].value;
           }
+        }
+        if (part.indicadorRepresentante) {
+          part.representantes = subj.representantes;
         }
         parts.push(part);
       }
