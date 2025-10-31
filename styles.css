@@ -34,6 +34,15 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* NEW: Styles for the new InputBlock container */
+.InputBlock {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 15px;
+}
+
 /* A horizontal flex container */
 .Row {
   display: flex;
@@ -113,11 +122,12 @@ h3.HeaderElement {
   color: #222;
 }
 
+/* This is the default for labels (e.g., in InputBlock) */
 .LabelElement {
   font-weight: 600;
   margin-right: 5px;
-  display: block;      /* Forces the label to take its own line */
-  margin-bottom: 5px;  /* Adds a small space below the label */
+  display: block; /* Forces the label to take its own line */
+  margin-bottom: 5px; /* Adds a small space below the label */
 }
 
 /* Labels in a Form stack on top of their inputs */
@@ -147,22 +157,18 @@ h3.HeaderElement {
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
-/* Tell ALL direct children of a Row to share space */
-.Row > .Block,
+/* NEW: Fixes inputs inside a Row (like RepList, Operacao) */
+/* Since Row.add forces 'display: inline', we must override width */
 .Row > .InputElement,
-.Row > .MenuInput,
-.Row > .LabelElement,
-.Row > .ControlButton {
-  width: auto; /* Override width: 100% */
-  flex-grow: 0; /* Default: don't grow */
-  flex-shrink: 0; /* Default: don't shrink */
+.Row > .MenuInput {
+  width: 200px; /* Give a default width */
 }
 
-/* Now, make specific children inside a Row grow */
-.Row > .InputElement,
-.Row > .MenuInput,
-.Row > .Row { /* Make inner Rows (like ListEntry's line) grow */
-  flex-grow: 1;
+/* NEW: Fixes labels inside a Row (like RepList, Operacao) */
+/* Overrides the 'display: block' rule from .LabelElement */
+.Row > .LabelElement {
+  display: inline;
+  margin-bottom: 0;
 }
 
 .CheckboxInput {
@@ -214,9 +220,9 @@ h3.HeaderElement {
 
 /* This targets the "titleLine" (a Row) inside the BlockTitle */
 .BlockTitle > .Row {
-  flex-grow: 1;     /* Let the title row grow */
-  flex-shrink: 1;   /* Allow the title row to shrink */
-  min-width: 0;     /* CRITICAL: Allows shrinking below content size */
+  flex-grow: 1; /* Let the title row grow */
+  flex-shrink: 1; /* Allow the title row to shrink */
+  min-width: 0; /* CRITICAL: Allows shrinking below content size */
 }
 
 /* This adds the "..." for long titles like "Alienantes" */
@@ -282,59 +288,49 @@ h3.HeaderElement {
   background-color: #c82333;
 }
 
-/* * This targets a ControlButton that is a *direct child* * of a ListEntry, which is your delete button.
-*/
+/* This positions the delete button, overriding 'display: inline' */
 .ListEntry > .ControlButton {
   position: absolute;
-  right: 10px;  /* 10px from the right edge */
-  top: 50%;     /* 50% down from the top */
+  right: 10px; /* 10px from the right edge */
+  top: 50%; /* 50% down from the top */
   transform: translateY(-50%); /* This centers it vertically */
-  padding: 5px 12px;  /* Reduces vertical padding */
-  font-size: 0.9rem;    /* Makes the text slightly smaller */
+  padding: 5px 12px; /* Reduces vertical padding */
+  font-size: 0.9rem; /* Makes the text slightly smaller */
 }
 
-.Pager > .PagerNav {
+/* --- Pager (UPDATED) --- */
+
+/* This is the left pane (the nav, which is an EditableList) */
+.Pager > .EditableList:first-child {
   flex: 1; /* 20% ratio */
-  max-width: 350px; 
+  max-width: 180px;
   background-color: #fcfcfc;
-  min-width: 0; /* This was from your code */
-
-  /* --- NEW MIN-WIDTH --- */
-  /* This protects the nav from shrinking too much. */
-  /* Adjust this value if it's too big or small. */
-  min-width: 280px; 
+  min-width: 100px; /* Protects nav from shrinking */
 }
 
-.Pager > .Pager:last-child {
+/* This is the right pane (the pane, which is a Block) */
+.Pager > .Block:last-child {
   flex: 4; /* 80% ratio */
   background-color: #fff;
   border-left: 1px solid #e0e0e0;
-
-  /* --- NEW/IMPORTANT --- */
-  /* This ensures the right pane CAN shrink and won't overlap */
-  min-width: 0; 
+  min-width: 0; /* Allows this pane to shrink */
 }
 
-/* --- Pager Pane Header Font Size Reduction --- */
+/* --- Pager Pane Header Font Size Reduction (UPDATED) --- */
 
 /* Targets H1 headers inside the PagerPane (right side) */
-.Pager > .Pager h1.HeaderElement {
+.Pager > .Block:last-child h1.HeaderElement {
   font-size: 1.5em; /* Default was 2em */
 }
 
 /* Targets H2 headers inside the PagerPane */
-.Pager > .Pager h2.HeaderElement {
+.Pager > .Block:last-child h2.HeaderElement {
   font-size: 1.25em; /* Default was 1.75em */
 }
 
 /* Targets H3 headers inside the PagerPane */
-.Pager > .Pager h3.HeaderElement {
+.Pager > .Block:last-child h3.HeaderElement {
   font-size: 1.15em; /* Default was 1.5em */
-}
-
-.PagerNav {
-  border: none;
-  box-shadow: none;
 }
 
 /* --- RepList (Representantes) --- */
@@ -362,3 +358,4 @@ h3.HeaderElement {
   font-weight: 700;
   color: #0056b3;
 }
+
