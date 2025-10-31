@@ -1,1030 +1,35 @@
-/* DATA FUNCTIONS */
-
-function saveObject(obj,key) {
-  try {
-    localStorage.setItem(key, JSON.stringify(obj));
-  } catch (error) {
-    throw(error);
-  }
-}
-
-function loadObject(key) {
-  const item = localStorage.getItem(key);
-  try {
-    if (!item) throw new Error(`No object with key ${key}.`)
-    const obj = JSON.parse(localStorage.getItem(key));
-    return obj;
-  } catch (error) {
-    throw(error);
-  }
-}
-
-function downloadObject(obj,filename) {
-  const content = JSON.stringify(obj,null,2);
-  const file = new Blob([content], {type:'text/plain'});
-  url = URL.createObjectURL(file);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-async function readJson(fileobj) {
-  try {
-    const content = await fileobj.text();
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("Couldn't read.")
-    throw (error);
-  }
-}
-
-/* UI COMPONENTS */
-
-class TextElement {
-  constructor(text) {
-    this.html = document.createElement("p");
-    this.html.setAttribute("class", "TextElement");
-    this.setText(text);
-  }
-  setText(newText) {
-    if (typeof newText === "string")
-      this.html.textContent = newText;
-    else throw Error("Invalid text.");
-  }
-}
-
-class LabelElement {
-  constructor(text) {
-    this.html = document.createElement("label");
-    this.html.setAttribute("class", "LabelElement");
-    this.html.textContent = text ?? "label";
-  }
-  setText(newText) {
-    if (typeof newText === "string")
-      this.html.textContent = newText;
-    else throw Error("Invalid label.");
-  }
-}
-
-class TextInput { 
-  constructor(defaultText) {
-    this.html = document.createElement("input");
-    this.html.setAttribute("type", "text");
-    this.html.setAttribute("class", "TextInput");
-    this.html.value = defaultText || "";
-  }
-  get value() {
-    return this.html.value;
-  }
-  set value(newValue) {
-    if (typeof newValue === "string") this.html.value = newValue;
-    else throw new Error("Invalid string.");
-  }
-}
-
-class NumberInput {
-  constructor(defaultValue) {
-    this.html = document.createElement("input");
-    this.html.setAttribute("type", "number");
-    this.html.setAttribute("class", "NumberInput");
-    this.html.value = defaultValue || 0;
-  }
-  get value() {
-    return this.html.value;
-  }
-  set value(newValue) {
-    if (typeof newValue === "number") this.html.value = newValue;
-    else throw new Error("Invalid number.");
-  }
-}
-
-class CheckboxInput {
-  constructor() {
-    this.html = document.createElement("input");
-    this.html.setAttribute("type", "checkbox");
-    this.html.setAttribute("class", "CheckboxInput");
-  }
-  get value() {
-    return this.html.checked;
-  }
-}
-
-
-class DateInput {
-  constructor() {
-    this.html = document.createElement("input");
-    this.html.setAttribute("type","date");
-    this.html.setAttribute("class","DateInput");
-    this.html.value = "";
-  }
-  get value() {
-    return this.html.value;
-  }
-  set value(newValue) {
-    if (typeof newValue === "string"
-      && !isNaN(Date.parse(newValue))) {
-      this.html.value = newValue;
-    }
-    else throw new Error("Invalid date.")
-  }
-}
-
-class MenuInput {
-  constructor() {
-    this.html = document.createElement("select");
-    this.html.setAttribute("class", "InputMenu");
-    const voidOption = document.createElement("option");
-    voidOption.value = 0;
-    voidOption.textContent = "";
-    this.html.appendChild(voidOption);
-  }
-  get value() {
-    return [this.html.value, this.html.textContent];
-  }
-  add(newOption) {
-    if (newOption.const && newOption.title) {
-      const option = document.createElement("option");
-      option.value = newOption.const;
-      option.textContent = newOption.title;
-      this.html.appendChild(option);
-    }
-    else throw new Error("Invalid new option {const, title}.");
-  }
-}
-
-class FilePicker {
-  constructor() {
-    this.html = document.createElement("input");
-    this.html.setAttribute("type", "file");
-    this.html.setAttribute("class", "FilePicker");
-  }
-  get file() {
-    return this.html.files[0];
-  }
-}
-
-class ControlButton {
-  constructor(text) {
-    this.html = document.createElement("button");
-    this.html.setAttribute("type", "button");
-    this.html.setAttribute("class", "ControlButton");
-    this.html.textContent = text ?? "Button"
-  }
-  setAction(actionFunction) {
-    if (actionFunction instanceof Function) {
-      console.log("here");
-      this.html.addEventListener("click", actionFunction);
-    }
-  }
-  trigger() { this.html.dispatchEvent(new Event('click')); }
-}
-
-class ColumnComponent {
-  constructor() {
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", "ColumnComponent");
-  }
-  add(newItem) {
-    if (newItem instanceof Node) {
-      //console.log(newItem);
-      newItem.style.display = "block";
-      this.html.appendChild(newItem);
-    }
-    else if (newItem.html) {
-      newItem.html.style.display = "block";
-      this.html.appendChild(newItem.html);
-    }
-  }
-}
-
-class RowComponent {
-  constructor() {
-    this.html = document.createElement("span");
-    this.html.setAttribute("class", "RowComponent");
-  }
-  add(newItem) {
-    if (newItem instanceof Node) {
-      this.html.appendChild(newItem);
-    }
-    else if (newItem.html) {
-      this.html.appendChild(newItem.html);
-    }
-  }
-}
-
-class PagerComponent {
-  constructor() {
-    this.current = 0;
-    this.pages = [];
-    this.default = null
-
-    this.html = document.createElement("div");
-    this.html.setAttribute("class", "PagerComponent");
-    this.pageArea = document.createElement("div");
-    this.pageArea.setAttribute("class", "PageArea");
-    this.html.appendChild(this.pageArea);
-
-    this.controls = new RowComponent();
-    const newButton = new ControlButton("+");
-    const delButton = new ControlButton("-");
-    const prevButton = new ControlButton("<");
-    const nextButton = new ControlButton(">");
-    newButton.setAction(() => this.new());
-    delButton.setAction(() => this.del());
-    prevButton.setAction(() => this.prev());
-    nextButton.setAction(() => this.next());
-    this.controls.add(newButton.html);
-    this.controls.add(delButton.html);
-    this.controls.add(prevButton.html);
-    this.controls.add(nextButton.html);
-    this.html.appendChild(this.controls.html);
-  }
-  setDefault(defaultPage) {
-    if (defaultPage instanceof Node) this.default = defaultPage;
-    else throw new Error("Invalid default page.");
-  }
-  add(newPage) {
-    let htmlPage = newPage;
-    if (newPage.html) htmlPage = newPage.html;
-    if (htmlPage instanceof Node) {
-      this.pages.push(newPage);
-      this.pageArea.appendChild(newPage);
-      this.current = this.pages.length-1;
-      this.select(this.current);
-    }
-    else throw new Error("Invalid new page.");
-  }
-  remove(index) {
-    if (this.pages[index]) {
-      this.pages.splice(index,1);
-      if (this.current == index) {
-        this.select((this.current ? this.current : 1) -1);
-      }
-      const newPageArea = document.createElement("div");
-      newPageArea.setAttribute("class", "PagerComponent");
-      for (const page of pages) newPageArea.appendChild(page);
-      delete this.pageArea;
-      this.pageArea = newPageArea;
-      select(this.current);
-      this.html.prepend(this.pageArea);
-    }
-    else throw new Error("Invalid page index.");
-  }
-  new() { this.add(this.default); }
-  del() { this.remove(this.current); }
-  select(index) {
-    if (index < 0 || index >= this.pages.length)
-      throw new Error("Invalid page index.");
-    for (const p in this.pages) {
-      //console.log(p);
-      //console.log(index);
-      if (p != index) {
-        this.pages[p].style.display = 'none';
-      }
-      else {
-        this.pages[p].style.display = 'block';
-        //console.log(this.pages[p]);
-      }
-    }
-    this.current = index;
-  }
-  prev() {
-    if (this.current > 0) {
-      this.current-=1;
-      this.select(this.current);
-    }
-  }
-  next() {
-    if (this.current+1 < this.pages.length) {
-      this.current+=1;
-      this.select(this.current);
-    }
-  }
-}
-
-/* MODELS AND VIEWS */
-class CPF {
-  static validate(ni) {
-    if (typeof ni !== "string") return false;
-    if (!/^\d{11}$/.test(ni)) return false;
-
-    // Reject CPFs with all digits the same (e.g. "11111111111")
-    if (/^(\d)\1{10}$/.test(ni)) return false;
-
-    const digits = ni.split("").map(d => parseInt(d, 10));
-
-    // Validate first check digit
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += digits[i] * (10 - i);
-    }
-    let firstCheck = 11 - (sum % 11);
-    if (firstCheck >= 10) firstCheck = 0;
-    if (digits[9] !== firstCheck) return false;
-
-    // Validate second check digit
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += digits[i] * (11 - i);
-    }
-    let secondCheck = 11 - (sum % 11);
-    if (secondCheck >= 10) secondCheck = 0;
-    if (digits[10] !== secondCheck) return false;
-
-    return true;
-  }
-}
-
-class CNPJ {
-  static validate(ni) {
-    if (typeof ni !== "string") return false;
-    if (!/^\d{14}$/.test(ni)) return false;
-
-    // Reject CNPJs with all digits the same
-    if (/^(\d)\1{13}$/.test(ni)) return false;
-
-    const digits = ni.split("").map(d => parseInt(d, 10));
-
-    // Weights for first check digit (positions 1-12)
-    const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    // Weights for second check digit (positions 1-13)
-    const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-
-    // Calculate first check digit
-    let sum = 0;
-    for (let i = 0; i < 12; i++) {
-      sum += digits[i] * weight1[i];
-    }
-    let firstCheck = sum % 11;
-    firstCheck = firstCheck < 2 ? 0 : 11 - firstCheck;
-    if (digits[12] !== firstCheck) return false;
-
-    // Calculate second check digit
-    sum = 0;
-    for (let i = 0; i < 13; i++) {
-      sum += digits[i] * weight2[i];
-    }
-    let secondCheck = sum % 11;
-    secondCheck = secondCheck < 2 ? 0 : 11 - secondCheck;
-    if (digits[13] !== secondCheck) return false;
-
-    return true;
-  }
-}
-
-class DoiProp {
-  constructor(schemaName,propName) {
-    const definitions = doiDefs[schemaName];
-    if (!definitions) throw new Error("schemaName does not exist");
-    if (typeof propName !== "string")
-      throw new Error("propName is required and must be a string.")
-    this.schema = definitions[propName];
-    if (!this.schema)
-      throw new Error(`Property ${propName} does not exist.`)
-    this.name = propName;
-    this.label = this.schema.description; 
-    this.value = null;
-    this.view = this.render();
-  }
-
-  forceValue(propValue) { this.value = propValue; }
-  setValue(propValue) { this.value = this.validate(propValue); }
-
-  validate(propValue) { // nullify invalid data
-    if (typeof propValue !== this.schema.type) {
-      return null;
-    }
-    if (this.schema.oneOf) {
-      for (const option of this.schema.oneOf) {
-        if (propValue === option.const) {
-          return propValue;
-        }
-      }
-      return null;
-    }
-    else {
-      if (this.schema.maxLength
-        && propValue.length > this.schema.maxLength) {
-        return null;
-      }
-      if (this.schema.minLength
-        && propValue.length < this.schema.minLength) {
-        return null;
-      }
-      if (this.schema.format
-        && !isFormatted(propValue,this.schema.format)) {
-        return null;
-      }
-      return propValue;
-    }
-
-    function isFormatted(value,format) {
-      if (format === "date") {
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(value)) return false;
-
-        const date = new Date(value);
-        if (isNaN(date.getTime())) return false;
-        return true;
-      }
-      else if (format === "int32") {
-        return (Number.isInteger(value)
-          && 0< value && value < 100000000);
-      }
-      else throw new Error("Impossible flow.");
-    }
-  }
-
-  render() {
-    const container = new ColumnComponent();
-    container.add(new LabelElement(this.label));
-    let field;
-    if (this.schema.oneOf) {
-      field = new MenuInput();
-      for (const option of this.schema.oneOf) field.add(option);
-      field.html.addEventListener("change",
-        () => this.setValue(field.value[0]));
-    }
-    else {
-      if (this.schema.format === "date") 
-        field = new DateInput();
-      else if (this.schema.type === "boolean")
-        field = new CheckboxInput();
-      else if (this.schema.type === "number")
-        field = new NumberInput();
-      else if (this.schema.type === "string")
-        field = new TextInput();
-      else throw new Error("Invalid input type.");
-      field.html.addEventListener("input",
-        () => this.setValue(field.value));
-    }
-    container.add(field);
-    return container;
-  }
-}
-
-class DoiEntity {
-  constructor(schemaName,requiredList) {
-    if (!schemaName in doiDefs)
-      throw new Error("schemaName not found");
-    if (!requiredList || !requiredList.length)
-      throw new Error("requiredList required");
-    this.schemaName = schemaName;
-    this.requiredList = requiredList;
-    for (const propName of Object.keys(doiDefs[this.schemaName])) {
- //     console.log(propName);
-      this.forceProp(propName,null);
-    }
-    this.view = this.render();
-  }
-
-  render() {
-    const container = new ColumnComponent();
-    container.add(new TextElement(this.schemaName))
-    for (const propName of Object.keys(this)) {
-      if (this[propName] instanceof DoiProp) {
-        container.add(this[propName].view);
-      }
-    }
-    return container;
-  }
-
-  forceProp(propName, propValue) {
-    this[propName] = new DoiProp(
-      this.schemaName, propName);
-    this[propName].forceValue(propValue);
-//    console.log(this[propName]);
-  }
-
-  setProp(propName, propValue) {
-    this[propName] = new DoiProp(
-      this.schemaName, propName);
-    this[propName].setValue(propValue);
-  }
-
-  isComplete() {
-    const requiredProps = new Set(this.requiredList);
-    for (const propName in this) {
-      const prop = this[propName];
-      // ignore properties outside of schema
-      if (!(prop instanceof DoiProp)) continue;
-      if (!prop.validate(prop.value)) return false;
-      if (requiredProps.has(prop.name)) {
-        requiredProps.delete(prop.name);
-      }
-    }
-    return requiredProps.size === 0;
-  }
-
-  isConsistent() { return true; }
-
-  isValid() {
-    return this.isComplete() && this.isConsistent();
-  }
-}
-
-class Subject extends DoiEntity {
-  static entity = "Subject";
-  #representantes;
-  constructor (position) {
-    super(position,[
-      "indicadorEspolio",
-      "indicadorEstrangeiro",
-      "indicadorNaoConstaParticipacaoOperacao",
-      "indicadorNiIdentificado"
-    ]);
-    this.#representantes=new Set();
-  }
-
-  get representantes() {
-    return Array.from(this.#representantes);
-  }
-
-  addRepresentante(ni) {
-    if (CPF.validate(ni) || CNPJ.validate(ni)) {
-      this.representantes.add(ni);
-      return true;
-    }
-    return false;
-  }
-
-  removeRepresentante(ni) {
-    this.representantes.delete(ni);
-  }
-
-  isConsistent() {
-    return (this.indicadorNiIdentificado.value === true
-      &&
-      !this.representantes.includes(this.ni.value)
-      &&
-      (!this.indicadorEspolio.value
-        || this.cpfInventariante.value)
-      &&
-      (!this.indicadorConjuge.value 
-        || (this.indicadorCpfConjugeIdentificado.value
-          && this.regimeBens.value))
-    );
-  }
-}
-
-class Alienante extends Subject {
-  static entity = "Alienante";
-  constructor() { super("Alienante"); }
-}
-
-class Adquirente extends Subject {
-  static entity = "Adquirente";
-  constructor() { super("Adquirente"); }
-}
-
-class Operacao {
-  constructor() {
-    this.total=0;
-  }
-
-  addPerson(person,fraction) {
-    if (
-      person instanceof Subject
-      && typeof fraction === "number"
-      && !this[person.ni.value]
-      && fraction>0
-      && fraction<=100) {
-      this[person.ni.value]=fraction;
-      this.total+=fraction;
-    }
-  }
-
-  removePerson(ni) {
-    if (this[ni]) {
-      this.total-=this[ni];
-      delete this[ni];
-    }
-  }
-
-  isValid() {
-    return (this.total>=98 && this.total <=100);
-  }
-}
-
-class Imovel extends DoiEntity {
-  #alienacao;
-  #aquisicao;
-  #outrosMunicipios;
-  static entity = "Imovel";
-  constructor() {
-    super("Imovel",[
-      "dataLavraturaRegistroAverbacao",
-      "dataNegocioJuridico",
-      "destinacao",
-      "formaPagamento",
-      "indicadorImovelPublicoUniao",
-      "indicadorPagamentoDinheiro",
-      "indicadorPermutaBens",
-      "tipoDeclaracao",
-      "tipoOperacaoImobiliaria",
-      "tipoParteTransacionada",
-      "tipoServico",
-      "valorParteTransacionada"
-    ]);
-    this.#alienacao = new Operacao();
-    this.#aquisicao = new Operacao();
-    this.#outrosMunicipios = new Set();
-  }
-
-  get alienacao() { return this.#alienacao; }
-  get aquisicao() { return this.#aquisicao; }
-  get outrosMunicipios() {
-    return Array.from(this.#outrosMunicipios);
-  }
-
-  setAlienante(alienanteObj,participacao) {
-    if (this.#alienacao[alienanteObj.ni.value])
-      this.#alienacao.removePerson(alienanteObj.ni.value);
-    this.#alienacao.addPerson(alienanteObj,participacao)
-  }
-
-  removeAlienante(ni) { this.#alienacao.removePerson(ni); }
-
-  setAdquirente(adquirenteObj,participacao) {
-    if (this.#aquisicao[adquirenteObj.ni.value])
-      this.#aquisicao.removePerson(adquirenteObj.ni.value);
-    this.#aquisicao.addPerson(adquirenteObj,participacao)
-  }
-
-  removeAdquirente(ni) { this.#aquisicao.removePerson(ni); }
-
-  addMunicipio(codigoIbge) {
-    if (typeof codigoIbge === "string"
-      && /^\d{7}$/.test(codigoIbge))
-      this.#outrosMunicipios.add(codigoIbge);
-  }
-
-  removeMunicipio(codigoIbge) {
-    if (typeof codigoIbge === "string"
-      && /^\d{7}$/.test(codigoIbge))
-      this.#outrosMunicipios.delete(codigoIbge);
-  }
-
-  isConsistent() {
-    return (this.#alienacao.isValid()
-      && this.#aquisicao.isValid());
-  }
-}
-
-class Ato extends DoiEntity {
-  #alienantes;
-  #adquirentes;
-  #imoveis;
-  static entity = "Ato";
-  constructor() {
-    super("Ato",[
-      "dataLavraturaRegistroAverbacao",
-      "dataNegocioJuridico",
-      "tipoDeclaracao",
-      "tipoServico",
-    ]);
-    this.#alienantes = new Set();
-    this.#adquirentes = new Set();
-    this.#imoveis = new Set();
-  }
-
-  get alienantes() { return Array.from(this.#alienantes); };
-  get adquirentes() { return Array.from(this.#adquirentes); };
-  get imoveis() { return Array.from(this.#imoveis) };
-
-  // TODO: implement render() which calls super.render(),
-  // then appends alienante, adquirente, imovel renders
-  // (Note: consider doing the same in those classes too)
-
-  includeAlienante(alienanteObj) {
-    if (alienanteObj instanceof Alienante 
-      && alienanteObj.isValid()) {
-      this.#alienantes.add(alienanteObj);
-    }
-  }
-
-  getAlienanteByNi(ni) {
-    for (const person of this.#alienantes) {
-      if (person.ni.value == ni) return person;
-    }
-    return null;
-  }
-
-  removeAlienante(alienanteObj) {
-    this.#alienantes.delete(alienanteObj);
-  }
-
-  includeAdquirente(adquirenteObj) {
-    if (adquirenteObj instanceof Adquirente
-      && adquirenteObj.isValid())
-      this.#adquirentes.add(adquirenteObj);
-  }
-
-  getAdquirenteByNi(ni) {
-    for (const person of this.#adquirentes) {
-      if (person.ni.value == ni) return person;
-    }
-    return null;
-  }
-
-  removeAdquirente(adquirenteObj) {
-    this.#adquirentes.delete(adquirenteObj);
-  }
-
-  addImovel(imovelObj) {
-    if (imovelObj instanceof Imovel
-      && imovelObj.isValid())
-      this.#imoveis.add(imovelObj);
-  }
-
-  removeImovel(imovelObj) { this.#imoveis.delete(imovelObj); }
-
-  // TODO: check if participating subjects do belong to act
-  isConsistent() { return true; }
-
-  generateDoi(imovel) {
-    const doiObj = {};
-    for (const prop in this) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = this[prop].value;
-      }
-    }
-    for (const prop in imovel) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = imovel[prop].value;
-      }
-    }
-    doiObj.alienantes=[];
-    for (const ni in imovel.alienacao) {
-      const alienante = { "participacao": imovel.alienacao[ni] };
-      const person = this.getAlienanteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          alienante[prop.name] = person[prop].value;
-      }
-      doiObj.alienantes.push(alienante);
-    }
-    doiObj.adquirentes=[];
-    for (const ni in imovel.aquisicao) {
-      const adquirente = { "participacao": imovel.aquisicao[ni] };
-      const person = this.getAdquirenteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          adquirente[prop] = person[prop].value;
-      }
-      doiObj.adquirentes.push(adquirente);
-    }
-    return doiObj;
-  }
-}
-
 // BEGIN SCHEMA
 const doiJson = `{
-  "Adquirente": {
-    "cpfConjuge": {
-      "type": "string",
-      "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)",
-      "minLength": 11,
-      "maxLength": 11
-    },
-    "cpfInventariante": {
-      "type": "string",
-      "description": "CPF do Inventariante",
-      "minLength": 11,
-      "maxLength": 11
-    },
-    "indicadorConjuge": {
-      "type": "boolean",
-      "description": "Informar se o adquirente possui cônjuge"
-    },
-    "indicadorConjugeParticipa": {
-      "type": "boolean",
-      "description": "Informar se o cônjuge participa da operação"
-    },
-    "indicadorCpfConjugeIdentificado": {
-      "type": "boolean",
-      "description": "Informar se consta o CPF do cônjuge no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)"
-    },
-    "indicadorEspolio": {
-      "type": "boolean",
-      "description": "Informar se a aquisição foi feita em nome de espólio."
-    },
-    "indicadorEstrangeiro": {
-      "type": "boolean",
-      "description": "Informar se o adquirente (s) é estrangeiro"
-    },
-    "indicadorNaoConstaParticipacaoOperacao": {
-      "type": "boolean",
-      "description": "Indicador que sinaliza que o percentual de participação não consta nos documentos"
-    },
-    "indicadorNiIdentificado": {
-      "type": "boolean",
-      "description": "Informar se consta CPF da(s) parte(s) no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)"
-    },
-    "indicadorRepresentante": {
-      "type": "boolean",
-      "description": "Indicador que sinaliza que o(s) alienante(s) outorgou (aram) mandato a pessoa física ou jurídica para representá-lo(s) na operação imobiliária informada pela serventia"
-    },
-    "motivoNaoIdentificacaoNi": {
-      "info": "TipoMotivoNaoIdentificacaoNiParte",
-      "description": "Informar o motivo da ausência do CPF da parte",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Sem CPF/CNPJ - Decisão Judicial"
-        },
-        {
-          "const": "2",
-          "title": "Não consta no documento"
-        }
-      ]
-    },
-    "ni": {
-      "type": "string",
-      "description": "Identificador da parte",
-      "minLength": 11,
-      "maxLength": 14
-    },
-    "regimeBens": {
-      "info": "RegimeBens",
-      "description": "Informar o regime de bens no casamento",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Separação de Bens"
-        },
-        {
-          "const": "2",
-          "title": "Comunhão Parcial de Bens"
-        },
-        {
-          "const": "3",
-          "title": "Comunhão Universal de Bens"
-        },
-        {
-          "const": "4",
-          "title": "Participação Final nos Aquestos"
-        }
-      ]
-    }
-  },
-  "Alienante": {
-    "cpfConjuge": {
-      "type": "string",
-      "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)",
-      "minLength": 11,
-      "maxLength": 11
-    },
-    "cpfInventariante": {
-      "type": "string",
-      "description": "CPF do Inventariante",
-      "minLength": 11,
-      "maxLength": 11
-    },
-    "indicadorConjuge": {
-      "type": "boolean",
-      "description": "Informar se o adquirente possui cônjuge"
-    },
-    "indicadorConjugeParticipa": {
-      "type": "boolean",
-      "description": "Informar se o cônjuge participa da operação"
-    },
-    "indicadorCpfConjugeIdentificado": {
-      "type": "boolean",
-      "description": "Informar se consta o CPF do cônjuge no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)"
-    },
-    "indicadorEspolio": {
-      "type": "boolean",
-      "description": "Informar se a aquisição foi feita em nome de espólio."
-    },
-    "indicadorEstrangeiro": {
-      "type": "boolean",
-      "description": "Informar se o adquirente (s) é estrangeiro"
-    },
-    "indicadorNaoConstaParticipacaoOperacao": {
-      "type": "boolean",
-      "description": "Indicador que sinaliza que o percentual de participação não consta nos documentos"
-    },
-    "indicadorNiIdentificado": {
-      "type": "boolean",
-      "description": "Informar se consta CPF da(s) parte(s) no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)"
-    },
-    "indicadorRepresentante": {
-      "type": "boolean",
-      "description": "Indicador que sinaliza que o(s) alienante(s) outorgou (aram) mandato a pessoa física ou jurídica para representá-lo(s) na operação imobiliária informada pela serventia"
-    },
-    "motivoNaoIdentificacaoNi": {
-      "info": "TipoMotivoNaoIdentificacaoNiParte",
-      "description": "Informar o motivo da ausência do CPF da parte",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Sem CPF/CNPJ - Decisão Judicial"
-        },
-        {
-          "const": "2",
-          "title": "Não consta no documento"
-        }
-      ]
-    },
-    "ni": {
-      "type": "string",
-      "description": "Identificador da parte",
-      "minLength": 11,
-      "maxLength": 14
-    },
-    "regimeBens": {
-      "info": "RegimeBens",
-      "description": "Informar o regime de bens no casamento",
-      "type": "string",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Separação de Bens"
-        },
-        {
-          "const": "2",
-          "title": "Comunhão Parcial de Bens"
-        },
-        {
-          "const": "3",
-          "title": "Comunhão Universal de Bens"
-        },
-        {
-          "const": "4",
-          "title": "Participação Final nos Aquestos"
-        }
-      ]
-    }
-  },
   "Ato": {
-    "dataLavraturaRegistroAverbacao": {
+    "tipoDeclaracao": {
+      "info" : "TipoDeclaracao",
+      "description": "Tipo da declaração",
       "type": "string",
-      "format": "date",
-      "description": "Informar a data de lavratura / registro / averbação"
-    },
-    "dataNegocioJuridico": {
-      "type": "string",
-      "format": "date",
-      "description": "Informar a data da celebração do negócio jurídico"
-    },
-    "existeDoiAnterior": {
-      "type": "boolean",
-      "description": "Informar se consta a expressão 'Emitida a DOI' no título registrado"
-    },
-    "folha": {
-      "type": "string",
-      "description": "Páginas/Folhas (indicar nº início-fim)",
-      "maxLength": 7
-    },
-    "matriculaNotarialEletronica": {
-      "type": "string",
-      "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD - A MNE deve ser validada através do DV informado, seguindo o algoritmo módulo 97 base 10, conforme norma ISO 7064:2023",
-      "maxLength": 24
-    },
-    "naturezaTitulo": {
-      "info" : "NaturezaTitulo",
-      "type": "string",
-      "description": "Informar a natureza do título registrado",
       "oneOf": [
         {
-          "const": "1",
-          "title": "Instrumento particular com força de escritura pública"
-        },
-        {
-          "const": "2",
-          "title": "Escritura Pública"
-        },
-        {
-          "const": "3",
-          "title": "Título Judicial"
-        },
-        {
-          "const": "4",
-          "title": "Contratos ou termos administrativos"
-        },
-        {
-          "const": "5",
-          "title": "Atos autênticos de países estrangeiros"
+          "const": "0",
+          "title": "Original"
         }
       ]
     },
-    "numeroLivro": {
+    "tipoServico" : {
+      "info": "TipoServico",
       "type": "string",
-      "description": "Informar o número do livro em que o ato foi escriturado ou o título foi registrado",
-      "maxLength": 7
-    },
-    "retificacaoAto": {
-      "type": "boolean",
-      "description": "Informar se na operação atual houve retificação de ato anteriormente declarado"
+      "description": "Selecionar o tipo de serviço executado em relação à operação imobiliária declarada",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Notarial"
+        },
+        {
+          "const": "2",
+          "title": "Registro de Imóveis"
+        },
+        {
+          "const": "3",
+          "title": "Registro de títulos e documentos"
+        }
+      ]
     },
     "tipoAto": {
       "info" : "TipoAto",
@@ -1057,115 +62,221 @@ const doiJson = `{
         }
       ]
     },
-    "tipoDeclaracao": {
-      "info" : "TipoDeclaracao",
-      "description": "Tipo da declaração",
+    "dataLavraturaRegistroAverbacao": {
       "type": "string",
-      "oneOf": [
-        {
-          "const": "0",
-          "title": "Original"
-        }
-      ]
+      "format": "date",
+      "description": "Informar a data de lavratura / registro / averbação"
     },
-    "tipoServico" : {
-      "info": "TipoServico",
+    "dataNegocioJuridico": {
       "type": "string",
-      "description": "Selecionar o tipo de serviço executado em relação à operação imobiliária declarada",
+      "format": "date",
+      "description": "Informar a data da celebração do negócio jurídico"
+    },
+    "numeroLivro": {
+      "type": "string",
+      "description": "Informar o número do livro em que o ato foi escriturado ou o título foi registrado",
+      "maxLength": 7
+    },
+    "folha": {
+      "type": "string",
+      "description": "Páginas/Folhas (indicar nº início-fim)",
+      "maxLength": 7
+    },
+    "matriculaNotarialEletronica": {
+      "type": "string",
+      "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD.",
+      "maxLength": 24
+    },
+    "retificacaoAto": {
+      "type": "boolean",
+      "description": "Informar se na operação atual houve retificação de ato anteriormente declarado"
+    }
+  },
+  "Adquirente": {
+    "ni": {
+      "type": "string",
+      "description": "Identificador da parte",
+      "minLength": 11,
+      "maxLength": 14
+    },
+    "indicadorNiIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta CPF da(s) parte(s) no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)"
+    },
+    "motivoNaoIdentificacaoNi": {
+      "info": "TipoMotivoNaoIdentificacaoNiParte",
+      "description": "Informar o motivo da ausência do CPF da parte",
+      "type": "string",
       "oneOf": [
         {
           "const": "1",
-          "title": "Notarial"
+          "title": "Sem CPF/CNPJ - Decisão Judicial"
         },
         {
           "const": "2",
-          "title": "Registro de Imóveis"
+          "title": "Não consta no documento"
+        }
+      ]
+    },
+    "indicadorConjuge": {
+      "type": "boolean",
+      "description": "Informar se o adquirente possui cônjuge"
+    },
+    "indicadorConjugeParticipa": {
+      "type": "boolean",
+      "description": "Informar se o cônjuge participa da operação"
+    },
+    "indicadorCpfConjugeIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta o CPF do cônjuge no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)"
+    },
+    "cpfConjuge": {
+      "type": "string",
+      "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "regimeBens": {
+      "info": "RegimeBens",
+      "description": "Informar o regime de bens no casamento",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Separação de Bens"
+        },
+        {
+          "const": "2",
+          "title": "Comunhão Parcial de Bens"
         },
         {
           "const": "3",
-          "title": "Registro de títulos e documentos"
+          "title": "Comunhão Universal de Bens"
+        },
+        {
+          "const": "4",
+          "title": "Participação Final nos Aquestos"
         }
       ]
     },
-    "tipoLivro": {
-      "info" : "TipoLivro",
+    "indicadorEspolio": {
+      "type": "boolean",
+      "description": "Informar se a aquisição foi feita em nome de espólio."
+    },
+    "cpfInventariante": {
       "type": "string",
-      "description": "Selecionar o livro em que o ato foi escriturado dentre as opções da caixa",
+      "description": "CPF do Inventariante",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "indicadorEstrangeiro": {
+      "type": "boolean",
+      "description": "Informar se o adquirente é estrangeiro"
+    },
+    "indicadorNaoConstaParticipacaoOperacao": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o percentual de participação não consta nos documentos"
+    },
+    "indicadorRepresentante": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o adquirente outorgou mandato a pessoa física ou jurídica para representá-lo na operação imobiliária informada pela serventia"
+    }
+  },
+  "Alienante": {
+    "ni": {
+      "type": "string",
+      "description": "Identificador da parte",
+      "minLength": 11,
+      "maxLength": 14
+    },
+    "indicadorNiIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta CPF da(s) parte(s) no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)"
+    },
+    "motivoNaoIdentificacaoNi": {
+      "info": "TipoMotivoNaoIdentificacaoNiParte",
+      "description": "Informar o motivo da ausência do CPF da parte",
+      "type": "string",
       "oneOf": [
         {
           "const": "1",
-          "title": "Lv.2-Registro Geral(matrícula)"
+          "title": "Sem CPF/CNPJ - Decisão Judicial"
         },
         {
           "const": "2",
-          "title": "Transcrição das Transmissões"
+          "title": "Não consta no documento"
         }
       ]
+    },
+    "indicadorConjuge": {
+      "type": "boolean",
+      "description": "Informar se o alienante possui cônjuge"
+    },
+    "indicadorConjugeParticipa": {
+      "type": "boolean",
+      "description": "Informar se o cônjuge participa da operação"
+    },
+    "indicadorCpfConjugeIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta o CPF do cônjuge no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)"
+    },
+    "cpfConjuge": {
+      "type": "string",
+      "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "regimeBens": {
+      "info": "RegimeBens",
+      "description": "Informar o regime de bens no casamento",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Separação de Bens"
+        },
+        {
+          "const": "2",
+          "title": "Comunhão Parcial de Bens"
+        },
+        {
+          "const": "3",
+          "title": "Comunhão Universal de Bens"
+        },
+        {
+          "const": "4",
+          "title": "Participação Final nos Aquestos"
+        }
+      ]
+    },
+    "indicadorEspolio": {
+      "type": "boolean",
+      "description": "Informar se a alienação foi feita por espólio."
+    },
+    "cpfInventariante": {
+      "type": "string",
+      "description": "CPF do Inventariante",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "indicadorEstrangeiro": {
+      "type": "boolean",
+      "description": "Informar se o alienante é estrangeiro"
+    },
+    "indicadorNaoConstaParticipacaoOperacao": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o percentual de participação não consta nos documentos"
+    },
+    "indicadorRepresentante": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o(s) alienante(s) outorgou (aram) mandato a pessoa física ou jurídica para representá-lo(s) na operação imobiliária informada pela serventia"
     }
   },
   "Imovel": {
-    "areaConstruida": {
-      "type": "number",
-      "description": "Área Construída (m2). Informar de acordo com a matrícula. Até o limite de 12 inteiros e 4 casas decimais. Preenchimento em m2"
-    },
-    "areaImovel": {
-      "type": "number",
-      "description": "Área do lote urbano em m2 ou área do imóvel rural em ha conforme matrícula. (máx. 13 inteiros e 2 casas)."
-    },
-    "bairro": {
-      "type": "string",
-      "description": "Bairro do endereço do imóvel",
-      "maxLength": 150
-    },
-    "cep": {
-      "type": "string",
-      "description": "CEP do endereço do imóvel",
-      "maxLength": 8
-    },
-    "certidaoAutorizacaoTransferencia": {
-      "type": "string",
-      "description": "Informar o número da Certidão de Autorização para Transferência (CAT) emitida pela Secretaria de Patrimônio da União (SPU)",
-      "maxLength": 11
-    },
-    "cib": {
-      "type": "string",
-      "description": "Informar o código do imóvel no Cadastro Imobiliário Brasileiro (CIB). Cálculo do DV quando os caracteres originais são exclusivamente numéricos:algoritimo utilizado pelo Nirf, segundo a regra do Módulo 11. Cálculo do DV quando os caracteres originais não são exclusivamente numéricos: a) para cada caractere codificado, o seu valor será multiplicado pela sequência de fatores 4,3,9,5,7,1, e 8; b) a soma dos produtos será dividida por 31",
-      "maxLength": 8
-    },
     "codigoIbge": {
       "type": "string",
       "description": "Informar o código IBGE do município onde se localiza o imóvel",
       "maxLength": 7
-    },
-    "codigoIncra": {
-      "type": "string",
-      "description": "Informar o código do imóvel no Sistema Nacional de Cadastro Rural (SNCR)",
-      "maxLength": 13
-    },
-    "codigoNacionalMatricula": {
-      "type": "string",
-      "description": "Informar o Código Nacional de Matrícula (CNM). Formato: CCCCCCLNNNNNNNDD - O CNM informado será validado através do DV informado, seguindo o algoritmo módulo 97 base 10, conforme norma ISO 7064:2023",
-      "maxLength": 16
-    },
-    "complementoEndereco": {
-      "type": "string",
-      "description": "Complemento do endereço do imóvel",
-      "maxLength": 100
-    },
-    "complementoNumeroImovel": {
-      "type": "string",
-      "description": "Complemente do número do endereço do imóvel",
-      "maxLength": 10
-    },
-    "denominacao": {
-      "type": "string",
-      "description": "Informar o nome do imóvel rural que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc), caso exista",
-      "maxLength": 200
-    },
-    "descricaoOutrasOperacoesImobiliarias": {
-      "type": "string",
-      "description": "Descrever a operação imobiliária se o valor selecionado na caixa for 'Outras Operações Imobiliárias'",
-      "maxLength": 30
     },
     "destinacao": {
       "info": "Destinacao",
@@ -1181,111 +292,6 @@ const doiJson = `{
           "title": "Rural"
         }
       ]
-    },
-    "formaPagamento": {
-      "info":"FormaPagamento",
-      "type": "string",
-      "description": "Selecionar a forma de pagamento dentre as opções da caixa",
-      "oneOf": [
-        {
-          "const": "5",
-          "title": "Quitado à vista"
-        },
-        {
-          "const": "10",
-          "title": "Quitado a prazo"
-        },
-        {
-          "const": "11",
-          "title": "Quitado sem informação da forma de pagamento"
-        },
-        {
-          "const": "7",
-          "title": "A prazo"
-        },
-        {
-          "const": "9",
-          "title": "Não de aplica"
-        }
-      ]
-    },
-    "indicadorAlienacaoFiduciaria": {
-      "type": "boolean",
-      "description": "Informar se o imóvel foi objeto de alienação fiduciária na operação"
-    },
-    "indicadorAreaConstruidaNaoConsta": {
-      "type": "boolean",
-      "description": "Indicador de que a área de construção do imóvel não consta nos Documentos"
-    },
-    "indicadorAreaLoteNaoConsta": {
-      "type": "boolean",
-      "description": "Indicador de que a área do imóvel não consta nos Documentos. Vide Observações"
-    },
-    "indicadorImovelPublicoUniao": {
-      "type": "boolean",
-      "description": "Informar se o imóvel objeto da operação imobiliária é imóvel público da União"
-    },
-    "indicadorNaoConstaValorBaseCalculoItbiItcmd": {
-      "type": "boolean",
-      "description": "Assinalar a caixa se o valor da base de cálculo do ITBI/ITCMD não constar do documento"
-    },
-    "indicadorNaoConstaValorOperacaoImobiliaria": {
-      "type": "boolean",
-      "description": "Assinalar a caixa se o valor da operação imobiliária não constar do documento"
-    },
-    "indicadorPagamentoDinheiro": {
-      "type": "boolean",
-      "description": "Informar se houve pagamento em dinheiro"
-    },
-    "indicadorPermutaBens": {
-      "type": "boolean",
-      "description": "Informar se houve permuta de bens na operação imobiliária"
-    },
-    "inscricaoMunicipal": {
-      "type": "string",
-      "description": "Código da inscrição imobiliária",
-      "maxLength": 45
-    },
-    "localizacao": {
-      "type": "string",
-      "description": "Informar dados que possam ajudar na localização do imóvel, tais como: distrito, povoado, colônia, núcleo, rodovia/km, ramal, gleba, lote, etc. Exemplo: Partindo da Sede do Município,margem esquerda da BR 101, Km 60",
-      "maxLength": 200
-    },
-    "matricula": {
-      "type": "string",
-      "description": "Informar o número de ordem da matrícula do imóvel",
-      "maxLength": 7
-    },
-    "numeroRegistro": {
-      "type": "string",
-      "description": "Informar o número de ordem do registro do título",
-      "maxLength": 30
-    },
-    "numeroRegistroAverbacao": {
-      "type": "string",
-      "description": "Informar o número do registro/averbação",
-      "maxLength": 7
-    },
-    "mesAnoUltimaParcela": {
-      "type": "string",
-      "format": "date",
-      "description": "Informar o mês e o ano de vencimento da última parcela para pagamento a prazo"
-    },
-    "nomeLogradouro": {
-      "type": "string",
-      "description": "Logradouro do endereço do imóvel",
-      "maxLength": 150
-    },
-    "numeroImovel": {
-      "type": "string",
-      "description": "Número do endereço do imóvel",
-      "maxLength": 10
-    },
-    "registroImobiliarioPatrimonial": {
-      "type": "string",
-      "description": "Informar a identificação do imóvel no cadastro da Secretaria de Patrimônio da União (SPU), ou seja, o número do Registro Imobiliário Patrimonial (RIP)",
-      "minLength": 13,
-      "maxLength": 13
     },
     "tipoImovel": {
       "description": "Classificação de acordo com o uso finalistico da UI",
@@ -1354,6 +360,92 @@ const doiJson = `{
       "type": "string",
       "description": "Tipo logradouro do endereço do imóvel",
       "maxLength": 30
+    },
+    "nomeLogradouro": {
+      "type": "string",
+      "description": "Logradouro do endereço do imóvel",
+      "maxLength": 150
+    },
+    "complementoEndereco": {
+      "type": "string",
+      "description": "Complemento do endereço do imóvel",
+      "maxLength": 100
+    },
+    "numeroImovel": {
+      "type": "string",
+      "description": "Número do endereço do imóvel",
+      "maxLength": 10
+    },
+    "complementoNumeroImovel": {
+      "type": "string",
+      "description": "Complemente do número do endereço do imóvel",
+      "maxLength": 10
+    },
+    "bairro": {
+      "type": "string",
+      "description": "Bairro do endereço do imóvel",
+      "maxLength": 150
+    },
+    "localizacao": {
+      "type": "string",
+      "description": "Informar dados que possam ajudar na localização do imóvel, tais como: distrito, povoado, colônia, núcleo, rodovia/km, ramal, gleba, lote, etc. Exemplo: Partindo da Sede do Município,margem esquerda da BR 101, Km 60",
+      "maxLength": 200
+    },
+    "cep": {
+      "type": "string",
+      "description": "CEP do endereço do imóvel",
+      "maxLength": 8
+    },
+    "indicadorAreaLoteNaoConsta": {
+      "type": "boolean",
+      "description": "Indicador de que a área do imóvel não consta nos Documentos. Vide Observações"
+    },
+    "areaImovel": {
+      "type": "number",
+      "description": "Área do lote urbano em m2 ou área do imóvel rural em ha conforme matrícula. (máx. 13 inteiros e 2 casas)."
+    },
+    "indicadorAreaConstruidaNaoConsta": {
+      "type": "boolean",
+      "description": "Indicador de que a área de construção do imóvel não consta nos Documentos"
+    },
+    "areaConstruida": {
+      "type": "number",
+      "description": "Área Construída (m2). Informar de acordo com a matrícula. Até o limite de 12 inteiros e 4 casas decimais. Preenchimento em m2"
+    },
+    "matricula": {
+      "type": "string",
+      "description": "Informar o número de ordem da matrícula do imóvel",
+      "maxLength": 7
+    },
+    "inscricaoMunicipal": {
+      "type": "string",
+      "description": "Código da inscrição imobiliária",
+      "maxLength": 45
+    },
+    "cib": {
+      "type": "string",
+      "description": "Informar o código do imóvel no Cadastro Imobiliário Brasileiro (CIB). Cálculo do DV quando os caracteres originais são exclusivamente numéricos:algoritimo utilizado pelo Nirf, segundo a regra do Módulo 11. Cálculo do DV quando os caracteres originais não são exclusivamente numéricos: a) para cada caractere codificado, o seu valor será multiplicado pela sequência de fatores 4,3,9,5,7,1, e 8; b) a soma dos produtos será dividida por 31",
+      "maxLength": 8
+    },
+    "codigoIncra": {
+      "type": "string",
+      "description": "Informar o código do imóvel no Sistema Nacional de Cadastro Rural (SNCR)",
+      "maxLength": 13
+    },
+    "denominacao": {
+      "type": "string",
+      "description": "Informar o nome do imóvel rural que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc), caso exista",
+      "maxLength": 200
+    },
+    "codigoNacionalMatricula": {
+      "type": "string",
+      "description": "Informar o Código Nacional de Matrícula (CNM). Formato: CCCCCCLNNNNNNNDD - O CNM informado será validado através do DV informado, seguindo o algoritmo módulo 97 base 10, conforme norma ISO 7064:2023",
+      "maxLength": 16
+    },
+    "transcricao": {
+      "type": "number",
+      "format": "int32",
+      "description": "Informar o número de ordem da transcrição. Até o limite de 8 inteiros"
     },
     "tipoOperacaoImobiliaria": {
       "description": "Selecionar o tipo de operação imobiliária dentre as opções da caixa",
@@ -1494,6 +586,19 @@ const doiJson = `{
         }
       ]
     },
+    "descricaoOutrasOperacoesImobiliarias": {
+      "type": "string",
+      "description": "Descrever a operação imobiliária se o valor selecionado na caixa for 'Outras Operações Imobiliárias'",
+      "maxLength": 30
+    },
+    "indicadorPermutaBens": {
+      "type": "boolean",
+      "description": "Informar se houve permuta de bens na operação imobiliária"
+    },
+    "indicadorAlienacaoFiduciaria": {
+      "type": "boolean",
+      "description": "Informar se o imóvel foi objeto de alienação fiduciária na operação"
+    },
     "tipoParteTransacionada": {
       "description": "Selecionar se a informação da parte transacionada do  imóvel será em percentual ou área",
       "info": "TipoParteTransacionada",
@@ -1509,406 +614,1209 @@ const doiJson = `{
         }
       ]
     },
-    "transcricao": {
+    "valorParteTransacionada": {
       "type": "number",
-      "format": "int32",
-      "description": "Informar o número de ordem da transcrição. Até o limite de 8 inteiros"
+      "description": "Informar a quantidade de metros/hectares ou o percentual que foi objeto da operação imobiliária, conforme opção no campo tipoParteTransacionada. Até o limite de 18 inteiros e 2 casas decimais"
     },
-    "valorBaseCalculoItbiItcmd": {
-      "type": "number",
-      "description": "Informar o valor da base de cálculo do ITBI ou do ITCMD. Até o limite de 18 inteiros e 2 casas decimais"
+    "indicadorNaoConstaValorOperacaoImobiliaria": {
+      "type": "boolean",
+      "description": "Assinalar a caixa se o valor da operação imobiliária não constar do documento"
     },
     "valorOperacaoImobiliaria": {
       "type": "number",
       "description": "Informar o valor da operação imobiliária. Até o limite de 18 inteiros e 2 casas decimais"
     },
+    "indicadorNaoConstaValorBaseCalculoItbiItcmd": {
+      "type": "boolean",
+      "description": "Assinalar a caixa se o valor da base de cálculo do ITBI/ITCMD não constar do documento"
+    },
+    "valorBaseCalculoItbiItcmd": {
+      "type": "number",
+      "description": "Informar o valor da base de cálculo do ITBI ou do ITCMD. Até o limite de 18 inteiros e 2 casas decimais"
+    },
+    "formaPagamento": {
+      "info":"FormaPagamento",
+      "type": "string",
+      "description": "Selecionar a forma de pagamento dentre as opções da caixa",
+      "oneOf": [
+        {
+          "const": "5",
+          "title": "Quitado à vista"
+        },
+        {
+          "const": "10",
+          "title": "Quitado a prazo"
+        },
+        {
+          "const": "11",
+          "title": "Quitado sem informação da forma de pagamento"
+        },
+        {
+          "const": "7",
+          "title": "A prazo"
+        },
+        {
+          "const": "9",
+          "title": "Não de aplica"
+        }
+      ]
+    },
     "valorPagoAteDataAto": {
       "type": "number",
       "description": "Informar o valor pago até a data do ato. Este campo somente deve ser  incluído se a opção 'A prazo' do campo 'forma de pagamento' for escolhida. Até o limite de 18 inteiros e 2 casas decimais"
+    },
+    "mesAnoUltimaParcela": {
+      "type": "string",
+      "format": "date",
+      "description": "Informar o mês e o ano de vencimento da última parcela para pagamento a prazo"
+    },
+    "indicadorPagamentoDinheiro": {
+      "type": "boolean",
+      "description": "Informar se houve pagamento em dinheiro"
     },
     "valorPagoMoedaCorrenteDataAto": {
       "type": "number",
       "description": "Informar o valor pago em espécie até a data do ato. Este campo somente deve ser  incluído se a informação no campo “indicadorPagamentoDinheiro” for True. Até o limite de 18 inteiros e 2 casas decimais"
     },
-    "valorParteTransacionada": {
-      "type": "number",
-      "description": "Informar a quantidade de metros/hectares ou o percentual que foi objeto da operação imobiliária, conforme opção no campo tipoParteTransacionada. Até o limite de 18 inteiros e 2 casas decimais"
+    "indicadorImovelPublicoUniao": {
+      "type": "boolean",
+      "description": "Informar se o imóvel objeto da operação imobiliária é imóvel público da União"
+    },
+    "registroImobiliarioPatrimonial": {
+      "type": "string",
+      "description": "Informar a identificação do imóvel no cadastro da Secretaria de Patrimônio da União (SPU), ou seja, o número do Registro Imobiliário Patrimonial (RIP)",
+      "minLength": 13,
+      "maxLength": 13
+    },
+    "certidaoAutorizacaoTransferencia": {
+      "type": "string",
+      "description": "Informar o número da Certidão de Autorização para Transferência (CAT) emitida pela Secretaria de Patrimônio da União (SPU)",
+      "maxLength": 11
     }
   }
 }`;
 // END SCHEMA
-const doiDefs=JSON.parse(doiJson);
 
-class PropField { // with empty defaults
-  constructor(id, doiProp) {
-    if (!id) throw new Error("id required.");
-    this.id = id;
-    if (!(doiProp instanceof DoiProp))
-      throw new Error("Fields must correspond to DOI props.");
-    this.model = doiProp;
-    this.validator = new ValidationMarker(`${id}-validator`);
-    const schema = doiProp.schema;
-    if (schema.oneOf) { // InputMenu
-      this.options = {};
-      for (const option of schema.oneOf)
-        this.options[option.const] = option.value;
-      this.view = new InputMenu(this.id, this.options);
-      this.view.html.addEventListener("change", () => this.update());
-    }
-    else if (doiProp.schema.type === "boolean") { // CheckField
-      this.view = new CheckboxInput(this.id);
-      this.validator.html.style.display = "none"; // no ValidationMarker
-    }
-    else {
-      if (schema.type === "string") {
-        if (schema.format === "date") { // DateField
-          this.view = new DateInput(this.id)
-        }
-        else this.view = new TextInput(this.id);
-      }
-      else if (doiProp.schema.type === "number") { // NumberField
-        this.view = new NumberInput(this.id);
-      }
-      this.view.html.addEventListener("input", () => this.update());
-    }
-  }
-  update() { 
-    this.model.setValue(this.view.value);
-    if (this.model.value) this.validator.accept();
-    else this.validator.reject();
-    return (this.model.value == null);
-  }
-  get container() {
-    const container = document.createElement("div");
-    const containerId = `${this.id}-label`;
-    container.setAttribute("id", containerId);
-    container.setAttribute("class", "PropField");
-    const title = new Label(`${this.id}-label`, this.model.label);
-    title.addToSection(containerId);
-    this.view.addToSection(containerId);
-    this.validator.addToSection(containerId);
-    return container;
-  }
-//  register() { document.body.appendChild(this.container); }
-  show() { this.view.show(); this.validator.show(); }
-  hide() { this.view.hide(); this.validator.hide(); }
-  toggle() { this.view.toggle(); this.validator.toggle(); }
+// LOCAL STORAGE LIBRARY 
+
+function saveObject(obj,key) {
+  localStorage.setItem(key, JSON.stringify(obj));
 }
 
-class RepsBox { // MVC-in-one
-  constructor(id) {
-    if (!id) throw new Error("id required.");
-    this.id = id;
-    this.pager = new Pager(`${id}-pager`,[]);
-    this.addRepPage();
-  }
-
-  addRepPage() {
-    const newRepPage = document.createElement("div");
-    newRepPage.setAttribute("class","RepPage");
-    const label = new Label(`${this.id}-ni-label`,"CPF ou CNPJ");
-    const input = new TextInput(`${this.id}-ni-input`,"");
-    newRepPage.appendChild(label.html);
-    newRepPage.appendChild(input.html);
-    this.pager.add(newRepPage);
-  }
-
-  get reps() {
-    const niList = [];
-    for (const page of this.pager.pages) {
-      const input = page.getElementsByTagName("input")[0];
-      if (input.value && input.value.length > 0)
-        niList.push(input.value);
-    }
-    return niList;
-  }
-
-  get container() {
-    const container = document.createElement("div");
-    const controls = document.createElement("span");
-    controls.setAttribute("id",`${this.id}-controls`);
-    controls.setAttribute("class","PagerControls");
-    const prevButton = new ControlButton(`${this.id}-prev`,"←");
-    prevButton.setAction(() => this.pager.previous());
-    controls.appendChild(prevButton.html);
-    const nextButton = new ControlButton(`${this.id}-next`,"→");
-    nextButton.setAction(() => this.pager.next);
-    controls.appendChild(nextButton.html);
-    const addButton = new ControlButton(`${this.id}-add`,"+");
-    addButton.setAction(() => this.addRepPage);
-    controls.appendChild(addButton.html);
-    const removeButton = new ControlButton(`${this.id}-remove`,"-");
-    removeButton.setAction(() => this.pager.pop);
-    controls.appendChild(removeButton.html);
-    container.appendChild(this.pager.html);
-    container.appendChild(controls);
-    return container;
+function loadObject(key) {
+  const item = localStorage.getItem(key);
+  try {
+    if (!item) throw new Error(`No object with key ${key}.`)
+    const obj = JSON.parse(item);
+    return obj;
+  } catch (error) {
+    throw(error);
   }
 }
 
-class SubjectBox { 
-  constructor(id, position) {
-    if (!id)
-      throw new Error("id required.");
-    this.id = id;
-    if (position === "Alienante")
-      this.model = Alienante.model();
-    else if (position === "Adquirente")
-      this.model = Adquirente.model();
-    else throw new Error("Invalid position.");
-    this.position = position;
-    const container = document.createElement("div");
-    container.setAttribute("class","SubjectBox");
-    this.view = [];
-    for (const prop of Object.entries(this.model)) {
-      if (prop instanceof DoiProp)
-        this.view.push(new PropField(`${id}-${prop.name}`,prop));
-    }
-    this.reps = new RepsBox(`${id}-reps`);
-  }
+function downloadObject(obj,filename) {
+  const content = JSON.stringify(obj,null,2);
+  const file = new Blob([content], {type:'text/plain'});
+  const url = URL.createObjectURL(file);
 
-  get container() {
-    const container = document.createElement("div");
-    const containerId = `${this.id}-box`;
-    container.setAttribute("id", containerId);
-    container.setAttribute("class", "SubjectBox");
-    const title =
-      new TextComponent(`${this.id}-title`, this.position);
-    title.addToSection(containerId);
-    this.view.forEach((propField) => {
-      container.appendChild(propField.container);
-    });
-    container.appendChild(this.reps.container);
-    return container;
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function readJson(fileobj) {
+  try {
+    const content = await fileobj.text();
+    return JSON.parse(content);
+  } catch (error) {
+    console.error("Couldn't read.")
+    throw (error);
   }
 }
 
 
-class OperationBox { // Soon: 
-  constructor(id, label) {
-    if (!id) throw new Error("id required.");
-    this.id = id;
-    this.serial=0;
-    this.label = label // Alienante or Adquirente
-    this.pager = new Pager(`${id}-pager`,[]);
-    this.subjects = [];
-    this.addOpPage();
-  }
+// FRONTEND LIBRARY 
 
-  update(subjectList) { this.subjects = subjectList; }
-
-  addOpPage() {
-    const newOpPage = document.createElement("div");
-    newOpPage.setAttribute("class","OpPage");
-    const nilabel = new Label(
-      `${this.id}-ni-label-${this.serial}`, this.label);
-    const ni = new InputMenu(
-      `${this.id}-subject-${this.serial}`, this.subjects);
-    ni.html.setAttribute("class", "operation-subject");
-    const partlabel = new Label(
-      `${this.id}-part-label-${this.serial}`,"Participação");
-    const part = new NumberInput(
-      `${this.id}-part-${this.serial}`);
-    this.serial+=1;
-    part.html.setAttribute("class", "operation-part");
-    newOpPage.appendChild(nilabel.html);
-    newOpPage.appendChild(ni.html);
-    newOpPage.appendChild(partlabel.html);
-    newOpPage.appendChild(part.html);
-    this.pager.add(newOpPage);
-  }
-
-  get operation() {
-    const participations = {};
-    for (const page of this.pager.pages) {
-      const subject =
-        page.getElementsByClassName(`operation-subject`)[0].value;
-      const participation =
-        page.getElementsByClassName(`operation-part`)[0].value;
-      participations[subject] = participation;
-    }
-    return participations;
-  }
-
-  get container() {
-    const container = document.createElement("div");
-    const controls = document.createElement("span");
-    controls.setAttribute("id",`${this.id}-controls`);
-    controls.setAttribute("class","PagerControls");
-    const prevButton = new ControlButton(`${this.id}-prev`,"←");
-    prevButton.setAction(() => this.pager.previous());
-    controls.appendChild(prevButton.html);
-    const nextButton = new ControlButton(`${this.id}-next`,"→");
-    nextButton.setAction(() => this.pager.next());
-    controls.appendChild(nextButton.html);
-    const addButton = new ControlButton(`${this.id}-add`,"+");
-    addButton.setAction(() => this.addRepPage());
-    controls.appendChild(addButton.html);
-    const removeButton = new ControlButton(`${this.id}-remove`,"-");
-    removeButton.setAction(() => this.pager.pop());
-    controls.appendChild(removeButton.html);
-    container.appendChild(this.pager.html);
-    container.appendChild(controls);
-    return container;
-  }
-}
-
-class RealtyBox {
-  constructor(id) {
-    if (!id)
-      throw new Error("id required.");
-    this.model = Imovel.model();
-    const container = document.createElement("div");
-    container.setAttribute("class","RealtyBox");
-    this.view = [];
-    for (const prop of Object.entries(this.model)) {
-      if (prop instanceof DoiProp)
-        this.view.push(new PropField(`${id}-${prop.name}`,prop));
-    }
-    this.alienacao = new OperationBox(
-      `${this.id}-alienacao`,"Alienante");
-    this.aquisicao = new OperationBox(
-      `${this.id}-aquisicao`,"Adquirente");
-  }
-
-  get container() {
-    const container = document.createElement("div");
-    const containerId = `${this.id}-box`;
-    container.setAttribute("id", containerId);
-    container.setAttribute("class", "RealtyBox");
-    this.view.forEach((propField) => {
-      container.appendChild(propField.container);
-    });
-    container.appendChild(this.alienacao.container);
-    container.appendChild(this.aquisicao.container);
-    return container;
-  }
-}
-
-class App {
+class UIComponent { // extend only
+  static tag = "p";
+  static className = "UIComponent";
   constructor() {
-    this.saveButton = new ControlButton("Salvar");
-    this.resumeButton = new ControlButton("Carregar");
-    this.downloadButton = new ControlButton("Download");
-    this.uploadButton = new ControlButton("Upload");
-    this.saveButton.setAction(() => this.save());
-    this.resumeButton.setAction(() => this.resume());
-    this.downloadButton.setAction(() => this.download());
-    this.uploadButton.setAction(() => this.upload());
-//    this.idlist = [];
-    const act = new Ato();
-    this.acts = [act];
-    this.pager = new PagerComponent();
-    this.pager.setDefault(act.view.html);
-    this.pager.new();
+    this.ui = true;
+    this.html = document.createElement(this.constructor.tag)
+    this.html.classList.add(this.constructor.className);
+  }
+  show() { this.html.hidden = false; }
+  hide() { this.html.hidden = true; }
+  toggle() { this.html.hidden = !this.html.hidden; }
+  pick() { this.html.classList.add("picked"); }
+  unpick() { this.html.classList.remove("picked"); }
+  showOn(condition) {
+    //TODO
+  }
+  setId(id) { if (id) this.html.setAttribute("id",id); }
+}
+
+class DisplayElement extends UIComponent { // also extend only
+  static tag = "p";
+  static className = "DisplayElement";
+  constructor(title) {
+    super();
+    this.title = title;
+  }
+  get title() { return this._title; }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+  }
+}
+
+class TextualElement extends DisplayElement {
+  static tag = "p";
+  static className = "TextualElement";
+  constructor(title) {
+    super(title);
+    this._title = title ?? "[title]";
+    this.html.textContent = this._title; 
+  }
+  get title() { return this._title; }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+    this.html.textContent = this._title;
+  }
+}
+
+class LabelElement extends TextualElement {
+  static tag = "label";
+  static className = "LabelElement";
+}
+
+class HElement extends TextualElement { // extend-only
+  static className = "HeaderElement";
+}
+
+class H1Element extends HElement { 
+  static tag = "h1";
+}
+
+class H2Element extends HElement {
+  static tag = "h2";
+}
+
+class H3Element extends HElement {
+  static tag = "h3";
+}
+
+class InputElement extends UIComponent {
+  static tag = "input";
+  static type = "text";
+  static className = "InputElement";
+  static isValid = (newInput) => {
+    return (newInput != null);
+  }
+  #defaultValue;
+  constructor(defaultValue) {
+    super();
+    this.html.setAttribute("type", this.constructor.type);
+    this.defaultValue = defaultValue;
+    this.value = defaultValue;
+  }
+  get value() { return this.html.value; }
+  set value(newValue) {
+    if (this.constructor.isValid(newValue))
+      this.html.value = newValue;
+    else throw new Error("Invalid value.");
+  }
+  get defaultValue() { return this.#defaultValue; }
+  set defaultValue(newDefault) {
+    if (this.constructor.isValid(newDefault))
+      this.#defaultValue = newDefault;
+    else throw new Error("Invalid default.");
+  }
+  reset() { this.html.value = this.defaultValue; }
+  isValid() { return this.constructor.isValid(this.value); }
+}
+
+class TextInput extends InputElement { 
+  static type = "text";
+  static className = "TextInput";
+  static isValid = (newInput) => {
+    return (typeof newInput === "string");
+  };
+  constructor(defaultText) {
+    super(defaultText ?? "");
+  }
+}
+
+class NumberInput extends InputElement {
+  static type = "number";
+  static className = "NumberInput";
+  static isValid = (newInput) => {
+    if (newInput == null || newInput === "") return true;
+    const n = Number(newInput);
+    return (Number.isFinite(n));
+  };
+  constructor(defaultValue) {
+    super(defaultValue ?? 0);
+  }
+  get value() { return Number(this.html.value); }
+  set value(newValue) {
+    if (this.constructor.isValid(newValue))
+      this.html.value = newValue;
+    else throw new Error("Invalid value.");
+  }
+}
+
+class DateInput extends InputElement {
+  static type = "date";
+  static className = "DateInput";
+  static isValid = (newInput) => {
+    return (newInput != null
+      && typeof newInput === "string"
+      && (newInput === ""
+        || !isNaN(Date.parse(newInput)))
+    );
+  };
+  constructor() {
+    super("");
+  }
+}
+
+class CheckboxInput extends UIComponent {
+  static tag = "input";
+  static className = "CheckboxInput";
+  constructor() {
+    super();
+    this.html.setAttribute("type", "checkbox");
+    this.value = false;
+  }
+  set value(newValue) {
+    if (typeof newValue === "boolean")
+      this.html.checked = newValue;
+  }
+  get value() {
+    return this.html.checked;
+  }
+}
+
+class MenuInput extends UIComponent {
+  static tag = "select";
+  static className = "MenuInput";
+  constructor() {
+    super();
+    this.options = {};
+    const voidOption = document.createElement("option");
+    voidOption.value = "0";
+    voidOption.textContent = "";
+    this.html.appendChild(voidOption);
+  }
+  get value() { return this.html.value; }
+  add(code, title) {
+    if (code != null && title != null) {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = title;
+      this.options[code]=option;
+      this.html.appendChild(option);
+    }
+    else throw new Error("Invalid new option.");
+  }
+  remove(code) {
+    if (this.options[code] == null)
+      throw new Error("Option does not exist.");
+    this.html.removeChild(this.options[code]);
+    delete this.options[code];
+  }
+}
+
+class FilePicker extends UIComponent {
+  static tag = "input";
+  static className = "FilePicker";
+  constructor() {
+    super();
+    this.html.setAttribute("type", "file");
+  }
+  get file() {
+    return this.html.files[0];
+  }
+}
+
+class ControlButton extends UIComponent {
+  static tag = "button";
+  static className = "ControlButton";
+  constructor(text) {
+    super();
+    this.html.setAttribute("type", "button");
+    this.html.textContent = text ?? "Button";
+  }
+  setAction(actionFunction) {
+    if (actionFunction instanceof Function) {
+      this.html.onclick = actionFunction;
+    }
+  }
+  addAction(actionFunction) {
+    if (actionFunction instanceof Function) {
+      this.html.addEventListener("click", actionFunction);
+    }
+  }
+  trigger() { this.html.click(); }
+}
+
+class Block extends UIComponent {
+  static tag = "div";
+  static className = "Block";
+  constructor() {
+    super();
+    this.items = [];
+    this.last = -1;
+  }
+  add(newItem) {
+    if (newItem?.ui) {
+      this.items.push(newItem);
+      this.html.appendChild(newItem.html);
+      this.last += 1;
+    }
+    else throw new Error("Invalid new entry.");
+  }
+  remove(index) {
+    if (index < 0) return;
+    if (index == null || index>this.last)
+      throw new Error("Invalid index.");
+    this.html.removeChild(this.items[index].html);
+    this.items.splice(index,1);
+    this.last -= 1;
+  }
+  indexOf(item) { return (this.items.indexOf(item)); }
+  removeItem(item) { this.remove(this.indexOf(item)); }
+}
+
+class InputBlock extends Block {
+  static className = "InputBlock";
+  constructor(label,field) {
+    super();
+    if (!label.ui || !field.ui) throw new Error("Invalid.");
+    this.label = label;
+    this.field = field;
+    super.add(label);
+    super.add(field);
+  }
+  get value() { return this.field.value; }
+}
+
+class Row extends Block {
+  static tag = "div"; // each row takes up the whole width
+  static className = "Row";
+  add(newItem) {
+    super.add(newItem);
+    newItem.html.style.display = "inline";
+  }
+}
+
+class Form extends Block {
+  static tag = "div";
+  static className = "Form";
+  add(newItem) {
+    super.add(newItem);
+    newItem.html.style.display = "block";
+  }
+}
+
+class DualPane extends UIComponent {
+  static tag = "div";
+  static className = "DualPane";
+  constructor() {
+    super();
+    const left = new Block();
+    this.setPane(left,"left");
+    this.html.appendChild(left.html);
+    const right = new Block();
+    this.setPane(right,"right");
+    this.html.appendChild(right.html);
+  }
+  setPane(pane,side) {
+    if (pane == null || !pane.ui)
+      throw new Error("Invalid pane.");
+    this[side]=pane;
+  }
+  setLeft(pane) {
+    this.setPane(pane,'left');
+    this.html.replaceChild(pane.html, this.html.firstChild);
+  }
+  setRight(pane) {
+    this.setPane(pane,'right');
+    this.html.replaceChild(pane.html, this.html.lastChild);
+  }
+}
+
+class ListEntry extends Row {
+  static className = "ListEntry";
+  constructor(line) {
+    super();
+    if (line == null || !line.ui)
+      throw new Error("Invalid line.");
+    this.line = line;
+    this.add(line);
+    this.delBtn = new ControlButton('-');
+    // delete button action must be set by parent
+    this.add(this.delBtn);
+  }
+}
+
+class TitledBlock extends Block {
+  static className = "TitledBlock";
+  constructor(title) {
+    super();
+    this.titleLine = new Row();
+    this.titleLine.html.classList.add("BlockTitle");
+    this.title = new TextualElement(title ?? "[title]");
+    this.titleLine.add(this.title);
+    this.html.prepend(this.titleLine.html);
+  }
+}
+
+class EditableList extends TitledBlock {
+  static className = "EditableList";
+  constructor(title) {
+    super(title); 
+    this.addBtn = new ControlButton('+');
+    // addBtn action set by parent
+    this.titleLine.add(this.addBtn);
+    this.current = -1;
+  }
+  reset() {
+    this.items.forEach((item)=>item.unpick());
+  }
+  select(index) {
+    if (index < 0) return;
+    if (index == null || index>this.last)
+      throw new Error("Invalid index.");
+    if (this.current >= 0)
+      this.items[this.current].unpick();
+    this.items[index].pick();
+    this.current = index;
+  }
+  add(newEntry) {
+    if (newEntry != null && newEntry instanceof ListEntry) {
+      super.add(newEntry);
+      newEntry.delBtn.setAction(() => this.removeItem(newEntry));
+      newEntry.html.addEventListener("click",
+        () => this.select(this.indexOf(newEntry)));
+    }
+    else throw new Error("Invalid list entry.")
+  }
+  remove(index) {
+    super.remove(index);
+    this.current = -1;
+    this.reset();
+  }
+}
+
+class Pager extends DualPane {
+  static className = "Pager";
+  constructor(title) {
+    super();
+    this.pane = new Block();
+    this.pages = new Map();
+    this.current = null;
+    this.nav = new EditableList(title);
+    this.addBtn = this.nav.addBtn;
+    // this.addBtn action set by parent
+    this.setLeft(this.nav);
+    this.setRight(this.pane);
+  }
+  get firstEntry() { return this.pages.keys().next().value; }
+  addPage(newPage) { 
+    if (!(newPage?.ui)) throw new Error("Invalid new page.");
+    const newId = new TextualElement(this.nav.items.length+1);
+    const newEntry = new ListEntry(newId);
+    newEntry.html.addEventListener("click",
+      () => this.select(newEntry));
+    this.nav.add(newEntry);
+    newEntry.delBtn.addAction(() => this.removePage(newEntry));
+    this.pages.set(newEntry,newPage);
+    this.pane.add(newPage);
+    this.select(newEntry);
+  }
+  removePage(entry) {
+    if (entry != null) {
+      this.pane.removeItem(this.pages.get(entry));
+      this.nav.removeItem(entry);
+      this.nav.items.forEach((item,i) => item.line.title = i+1);
+      this.pages.delete(entry);
+      this.current = null;
+      if (this.firstEntry) this.select(this.firstEntry);
+    }
+  }
+  select(entry) {
+    if (entry == null
+      || !this.pages.has(entry)
+      || entry === this.current)
+      return;
+    if (this.current !== null) {
+      this.current.unpick();
+      this.pages.get(this.current).hide();
+    }
+    this.nav.select(this.nav.items.indexOf(entry));
+    this.pages.get(entry).show();
+    this.current = entry;
+  }
+}
+
+// MODELS AND VIEWS 
+class CPF {
+  static validate(ni) {
+    if (typeof ni !== "string") return false;
+    if (!/^\d{11}$/.test(ni)) return false;
+
+    // Reject CPFs with all digits the same (e.g. "11111111111")
+    if (/^(\d)\1{10}$/.test(ni)) return false;
+
+    const digits = ni.split("").map(d => parseInt(d, 10));
+
+    // Validate first check digit
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += digits[i] * (10 - i);
+    }
+    let firstCheck = 11 - (sum % 11);
+    if (firstCheck >= 10) firstCheck = 0;
+    if (digits[9] !== firstCheck) return false;
+
+    // Validate second check digit
+    sum = 0;
+    for (let i = 0; i < 10; i++) {
+      sum += digits[i] * (11 - i);
+    }
+    let secondCheck = 11 - (sum % 11);
+    if (secondCheck >= 10) secondCheck = 0;
+    if (digits[10] !== secondCheck) return false;
+
+    return true;
+  }
+}
+
+class CNPJ {
+  static validate(ni) {
+    if (typeof ni !== "string") return false;
+    if (!/^\d{14}$/.test(ni)) return false;
+
+    // Reject CNPJs with all digits the same
+    if (/^(\d)\1{13}$/.test(ni)) return false;
+
+    const digits = ni.split("").map(d => parseInt(d, 10));
+
+    // Weights for first check digit (positions 1-12)
+    const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    // Weights for second check digit (positions 1-13)
+    const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+    // Calculate first check digit
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      sum += digits[i] * weight1[i];
+    }
+    let firstCheck = sum % 11;
+    firstCheck = firstCheck < 2 ? 0 : 11 - firstCheck;
+    if (digits[12] !== firstCheck) return false;
+
+    // Calculate second check digit
+    sum = 0;
+    for (let i = 0; i < 13; i++) {
+      sum += digits[i] * weight2[i];
+    }
+    let secondCheck = sum % 11;
+    secondCheck = secondCheck < 2 ? 0 : 11 - secondCheck;
+    if (digits[13] !== secondCheck) return false;
+
+    return true;
+  }
+}
+
+class DoiProp {
+  constructor(schemaName,propName) {
+    const definitions = doiDefs[schemaName];
+    if (!definitions) throw new Error("schemaName does not exist");
+    if (typeof propName !== "string")
+      throw new Error("propName is required and must be a string.")
+    this.schema = definitions[propName];
+    if (!this.schema)
+      throw new Error(`Property ${propName} does not exist.`)
+    this.name = propName;
+    this.label = this.schema.description; 
+    this.value = null;
     this.view = this.render();
   }
 
-  new() {
-    const act = new Ato();
-    this.acts.push(act);
-    this.pager.new();
+  forceValue(propValue) { 
+    this.value = propValue;
+  }
+  setValue(propValue) {
+    this.value = this.validate(propValue);
   }
 
-  add(act) {
-    this.acts.push(act);
-    this.pager.add(act.view.html);
+  get value() {
+    if (this.view.value != null)
+      this._value = this.view.value;
+    return this._value;
   }
 
-  load(doiList) { 
-    const actIdList = [];
-    const actList = [];
-    for (const doi of doiList) {
-      const actId = `${doi.numeroLivro}-${doi.folha}`;
-      if (actIdList.has(actId))
-        ato = actList[actIdList.indexOf(actId)];
-      else {
-        ato = new Ato();
-        actList.push(ato);
-        actIdList.push(actId);
-      }
-      const imovel = new Imovel();
-      ato.addImovel(imovel);
-      for (const propName in Object.keys(doi)) {
-        if (propName === 'alienantes') {
-          // TODO: add subject to ato and operation to imovel... 
-        }
-        else if (propName === 'adquirentes') {
-          // TODO: add subject to ato and operation to imovel... 
-        }
-        else if (imovel.schema.hasOwnProperty(propName)) {
-          imovel.setProp(propName, doi[propName]);
-        }
-        else if (ato.schema.hasOwnProperty(propName)) {
-          ato.setProp(propName, doi[propName]);
-        }
-        else throw new Error("Unknown property.");
-      }
+  set value(newValue) {
+    this._value = newValue;
+  }
 
+  validate(propValue) { // nullify invalid data
+    if (typeof propValue !== this.schema.type) {
+      return null;
     }
-    for (const prop in doiObject) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = this[prop].value;
+    if (this.schema.oneOf) {
+      for (const option of this.schema.oneOf) {
+        if (propValue === option.const) {
+          return propValue;
+        }
       }
+      return null;
     }
-    for (const prop in imovel) {
-      if (this[prop] instanceof DoiProp) {
-        doiObj[prop] = imovel[prop].value;
+    else {
+      if (this.schema.maxLength
+        && propValue.length > this.schema.maxLength) {
+        return null;
       }
-    }
-    doiObj.alienantes=[];
-    for (const ni in imovel.alienacao) {
-      const alienante = { "participacao": imovel.alienacao[ni] };
-      const person = this.getAlienanteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          alienante[prop.name] = person[prop].value;
+      if (this.schema.minLength
+        && propValue.length < this.schema.minLength) {
+        return null;
       }
-      doiObj.alienantes.push(alienante);
-    }
-    doiObj.adquirentes=[];
-    for (const ni in imovel.aquisicao) {
-      const adquirente = { "participacao": imovel.aquisicao[ni] };
-      const person = this.getAdquirenteByNi(ni);
-      for (const prop in person) {
-        if (prop instanceof DoiProp)
-          adquirente[prop] = person[prop].value;
+      if (this.schema.format
+        && !isFormatted(propValue,this.schema.format)) {
+        return null;
       }
-      doiObj.adquirentes.push(adquirente);
+      return propValue;
     }
-    return doiObj;
+
+    function isFormatted(value,format) {
+      if (format === "date") {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(value)) return false;
+
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return false;
+        return true;
+      }
+      else if (format === "int32") {
+        return (Number.isInteger(value)
+          && 0< value && value < 100000000);
+      }
+      else throw new Error("Impossible flow.");
+    }
   }
 
   render() {
-    const container = new ColumnComponent;
-    container.add(this.pager);
-    container.add(this.saveButton);
-    container.add(this.resumeButton);
-    container.add(this.downloadButton);
-    container.add(this.uploadButton);
-    return container.html;
-  }
-
-  get object() {
-    const doiObj = { "declaracoes": [] };
-    for (const act of this.acts) {
-      for (const imovel of act.imoveis) {
-        doiObj.declaracoes.push(act.generateDoi(imovel));
+    const label = new LabelElement(this.label);
+    let field;
+    if (this.schema.oneOf) {
+      field = new MenuInput();
+      for (const option of this.schema.oneOf) {
+        field.add(option.const, option.title);
       }
+      field.html.addEventListener("change",
+        () => this.setValue(field.value));
     }
-    return doiObj;
-  }
-
-  save() { saveObject(this.object,"draftDoi"); }
-  resume() { loadObject("draftDoi"); }
-  download() { downloadObject(this.object,"doi.json"); }
-  upload() { this.load(readJson("doi.json").declaracoes); }
-
-  init() {
-    document.getElementById("app").appendChild(this.view);
+    else {
+      if (this.schema.format === "date") 
+        field = new DateInput();
+      else if (this.schema.type === "boolean")
+        field = new CheckboxInput();
+      else if (this.schema.type === "number")
+        field = new NumberInput();
+      else if (this.schema.type === "string")
+        field = new TextInput();
+      else throw new Error("Invalid input type.");
+      field.html.addEventListener("input",
+        () => this.setValue(field.value));
+    }
+    const container = new InputBlock(label,field);
+    return container;
   }
 }
 
-const doimaker = new App();
-doimaker.init();
+class DoiEntity {
+  constructor(schemaName,requiredList) {
+    if (!(schemaName in doiDefs))
+      throw new Error("schemaName not found");
+    if (!requiredList || !requiredList.length)
+      throw new Error("requiredList required");
+    this.schemaName = schemaName;
+    this.requiredList = requiredList;
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      this.forceProp(propName,null);
+    }
+  }
 
+  render() { // assign to this.view (in subclasses only)
+    const container = new Block();
+    container.add(new H3Element(this.schemaName))
+    for (const propName of Object.keys(this)) {
+      if (this[propName] instanceof DoiProp) {
+        container.add(this[propName].view);
+      }
+    }
+    return container;
+  }
+
+  forceProp(propName, propValue) {
+    this[propName] = new DoiProp(
+      this.schemaName, propName);
+    this[propName].forceValue(propValue);
+  }
+
+  setProp(propName, propValue) {
+    this[propName] = new DoiProp(
+      this.schemaName, propName);
+    this[propName].setValue(propValue);
+  }
+
+  isComplete() {
+    const requiredProps = new Set(this.requiredList);
+    for (const propName in this) {
+      const prop = this[propName];
+      // ignore properties outside of schema
+      if (!(prop instanceof DoiProp)) continue;
+      if (!prop.validate(prop.value)) return false;
+      if (requiredProps.has(prop.name)) {
+        requiredProps.delete(prop.name);
+      }
+    }
+    return requiredProps.size === 0;
+  }
+
+  isConsistent() { return true; }
+
+  isValid() {
+    return this.isComplete() && this.isConsistent();
+  }
+}
+
+class RepList { 
+  constructor() {
+    this.inputs = [];
+    this.view = new EditableList("Representantes");
+    this.view.addBtn.setAction(() => {
+      const label = new LabelElement("CPF ou CNPJ: ");
+      const field = new TextInput("");
+      this.inputs.push(field);
+      const repLine = new Row();
+      repLine.add(label)
+      repLine.add(field)
+      const newRep = new ListEntry(repLine)
+      this.view.add(newRep);
+      newRep.delBtn.setAction (() => {
+        this.inputs.splice(this.view.indexOf(newRep),1);
+        this.view.removeItem(newRep);
+      });
+    });
+  }
+  get list() {
+    const representantes = [];
+    for (const rep of this.inputs) {
+      const ni = rep.value;
+      if (Subject.validate(ni))
+        representantes.push({"ni": ni});
+    }
+    return representantes;
+  }
+}
+
+class Subject extends DoiEntity {
+  static entity = "Subject";
+  static validate = (ni) => {
+    return (CPF.validate(ni) || CNPJ.validate(ni));
+  }
+  #representantes;
+  constructor (position) {
+    super(position,[
+      "indicadorConjuge",
+      "indicadorEspolio",
+      "indicadorEstrangeiro",
+      "indicadorNaoConstaParticipacaoOperacao",
+      "indicadorNiIdentificado",
+      "indicadorRepresentante"
+    ]);
+    this.#representantes = new RepList();
+    this.view = this.render();
+  }
+
+  get representantes() {
+    return this.#representantes.list;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.#representantes.view);
+    return container;
+  }
+
+  isConsistent() {
+    return (this.indicadorNiIdentificado.value === true
+      &&
+      !this.representantes.some(rep => rep.ni === this.ni.value)
+      &&
+      (!this.indicadorEspolio.value
+        || this.cpfInventariante.value)
+      &&
+      (!this.indicadorConjuge.value 
+        || (this.indicadorCpfConjugeIdentificado.value
+          && this.regimeBens.value))
+    );
+  }
+}
+
+class Alienante extends Subject {
+  static entity = "Alienante";
+  constructor() { super("Alienante"); }
+}
+
+class Adquirente extends Subject {
+  static entity = "Adquirente";
+  constructor() { super("Adquirente"); }
+}
+
+class SubjectList {
+  constructor(title) {
+    if (title === "Alienantes")
+      this.position = "Alienante";
+    else if (title === "Adquirentes")
+      this.position = "Adquirente";
+    else
+      throw new Error("Invalid position.");
+    this.pager = new Pager(title);
+    this.items = new Map();
+    this.pager.addBtn.setAction(() => {
+      const newSubj = new Subject(this.position);
+      this.items.set(newSubj.view,newSubj);
+      this.pager.addPage(newSubj.view);
+      const newEntry = this.pager.nav.items[this.pager.nav.last];
+      newEntry.delBtn.addAction(() => {
+        this.items.delete(newSubj.view);
+      });
+    });
+  }
+  get view() { return this.pager; }
+  get list() {
+    const validSubjects = [];
+    for (const subjectView of this.pager.pane.items) {
+      // TODO: validation
+        validSubjects.push(this.items.get(subjectView));
+    }
+    return validSubjects;
+  }
+  getSubjectByNi(ni) {
+    for (const subject of this.items.values())
+      if (subject.ni.value === ni) return subject;
+  }
+}
+
+class Operacao {
+  constructor(title) {
+    this.inputs = new Map();
+    const validTitle = title==null ? "Operação" : title;
+    //this.subjectList = [];
+    this.view = new EditableList(validTitle);
+    this.view.addBtn.setAction(() => {
+      const label1 = new LabelElement("Participante: ");
+      const subject = new TextInput(); // TODO: create menu
+      // Menu items must be managed by parent
+      const label2 = new LabelElement("%: ");
+      const participation = new NumberInput(0);
+      this.inputs.set(subject, participation);
+      const line = new Row();
+      line.add(label1); line.add(subject);
+      line.add(label2); line.add(participation);
+      const newOp = new ListEntry(line);
+      this.view.add(newOp);
+      newOp.delBtn.setAction (() => {
+        this.inputs.delete(subject);
+        this.view.removeItem(newOp);
+      });
+    });
+  }
+  get total() {
+    let sum=0;
+    for (const [subject, participation] of this.inputs.entries()) {
+      sum+=Number(participation.value);
+    }
+    return sum;
+  }
+  get list() {
+    const operacao = {};
+    for (const subject of this.inputs.keys()) {
+      const choice = subject.value;
+      const fraction = Number(this.inputs.get(subject).value);
+      if (this.validate(choice,fraction))
+        operacao[choice] = fraction;
+    }
+    return operacao;
+  }
+  validate(ni,fraction) {
+    if (Subject.validate(ni)
+        && typeof fraction === "number"
+        && fraction>0 && fraction<=100)
+      return true;
+    else return false;
+  }
+  isValid() {
+    return (this.total>=98 && this.total <=100);
+  }
+}
+
+class MunicipioList {
+  //TODO (last)
+}
+
+class Imovel extends DoiEntity {
+  #alienacao;
+  #aquisicao;
+  #outrosMunicipios;
+  static entity = "Imovel";
+  constructor(alienantes, adquirentes) {
+    super("Imovel",[
+      "destinacao",
+      "formaPagamento",
+      "indicadorImovelPublicoUniao",
+      "indicadorPagamentoDinheiro",
+      "indicadorPermutaBens",
+      "tipoOperacaoImobiliaria",
+      "tipoParteTransacionada",
+      "tipoServico",
+      "valorParteTransacionada"
+    ]);
+    this.alienantes = alienantes;
+    this.adquirentes = adquirentes;
+    this.#alienacao = new Operacao("Alienação");
+    // implement menu of alienantes here!
+    this.#aquisicao = new Operacao("Aquisição");
+    // implement menu of adquirentes here!
+    this.#outrosMunicipios = new MunicipioList();
+    this.view = this.render();
+  }
+
+  
+  get subjects() { return [
+      ...this.adquirentes.list,
+      ...this.alienantes.list
+  ];}
+  
+
+  get alienacao() { return this.#alienacao; }
+  get aquisicao() { return this.#aquisicao; }
+  get outrosMunicipios() {
+    // TODO
+  }
+
+  participantes(operacao) {
+    const parts = [];
+    const op = operacao.list;
+    for (const ni of Object.keys(op)) {
+      const subj = this.subjects.find(s => s.ni.value === ni);
+      if (subj != null) {
+        const part = { "ni": ni, participacao: op[ni] }
+        for (const prop of Object.keys(subj))
+        if (subj[prop] instanceof DoiProp) {
+          if (subj[prop].value != 0
+            || subj.requiredList.includes(prop)) {
+            part[prop] = subj[prop].value;
+          }
+        }
+        parts.push(part);
+      }
+    }
+    return parts;
+  }
+
+  get doi() {
+    const doi = {};
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      if (this[propName].value!= 0
+        || this.requiredList.includes(propName))
+        doi[propName] = this[propName].value;
+    }
+    doi.alienantes = this.participantes(this.alienacao);
+    doi.adquirentes = this.participantes(this.aquisicao);
+    return doi;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.#alienacao.view);
+    container.add(this.#aquisicao.view);
+    /* TODO: manage subject menu in each operacao
+    this.#aquisicao.view.addButton.addAction( () => {
+    });
+    this.#alienacao.view.addButton.addAction( () => {
+
+    });
+    */
+    //TODO: add outrosMunicipios
+    return container;
+  }
+
+/*
+  addMunicipio(codigoIbge) {
+    if (typeof codigoIbge === "string"
+      && /^\d{7}$/.test(codigoIbge))
+      this.#outrosMunicipios.add(codigoIbge);
+  }
+
+  removeMunicipio(codigoIbge) {
+    if (typeof codigoIbge === "string"
+      && /^\d{7}$/.test(codigoIbge))
+      this.#outrosMunicipios.delete(codigoIbge);
+  }
+*/
+  isConsistent() {
+    return (this.#alienacao.isValid()
+      && this.#aquisicao.isValid());
+  }
+}
+
+class ImovelList {
+  constructor(act) {
+    this.pager = new Pager("Imóveis");
+    this.items = new Map();
+    this.alienantes = act.alienantes;
+    this.adquirentes = act.adquirentes;
+    this.pager.addBtn.setAction(() => {
+      const newImovel =
+        new Imovel(this.alienantes, this.adquirentes);
+      this.items.set(newImovel.view,newImovel);
+      this.pager.addPage(newImovel.view);
+      const newEntry = this.pager.nav.items[this.pager.nav.last];
+      newEntry.delBtn.addAction(() => {
+        this.items.delete(newImovel.view);
+      });
+    });
+  }
+  get view() { return this.pager; }
+  get list() {
+    const validImoveis = [];
+    for (const imovelView of this.pager.pages.values()) {
+        validImoveis.push(this.items.get(imovelView));
+    }
+    return validImoveis;
+  }
+}
+
+class Ato extends DoiEntity {
+  static entity = "Ato";
+  constructor() {
+    super("Ato",[
+      "dataLavraturaRegistroAverbacao",
+      "dataNegocioJuridico",
+      "tipoDeclaracao",
+      "tipoServico",
+    ]);
+    this.alienantes = new SubjectList("Alienantes");
+    this.adquirentes = new SubjectList("Adquirentes");
+    this.imoveis = new ImovelList(this);
+    this.view = this.render();
+  }
+
+  get alienantesList() { return this.alienantes.list; }
+  get adquirentesList() { return this.adquirentes.list; }
+  get imoveisList() { return this.imoveis.list; };
+  get declaracoes() {
+    const declaracoes = [];
+    const doiList = this.imoveisList;
+    const atoDoi = {};
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      if (this[propName].value != 0
+          || this.requiredList.includes(propName)) {
+          atoDoi[propName] = this[propName].value;
+      }
+    }
+    for (const imovel of doiList) {
+      declaracoes.push({...atoDoi, ...imovel.doi});
+    }
+    return declaracoes;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.alienantes.view);
+    container.add(this.adquirentes.view);
+    container.add(this.imoveis.view);
+    return container;
+  }
+
+  json() {
+    return JSON.stringify({ "declaracoes": this.declaracoes });
+  }
+
+  // TODO
+  isConsistent() { return true; }
+}
+
+// GLOBAL AND ENVIRONMENT VARIABLES
+
+const doiDefs=JSON.parse(doiJson);
+
+// CONTROLLER
+
+class DoiMaker {
+  constructor() {
+    this.pager = new Pager("Atos");
+    this.nav = this.pager.nav;
+    this.entries = this.pager.nav.items;
+    this.items = new Map();
+    this.pager.addBtn.setAction(() => {
+      const newAct = new Ato();
+      this.items.set(newAct.view,newAct);
+      this.pager.addPage(newAct.view);
+      const newEntry = this.entries[this.nav.last];
+      newEntry.delBtn.addAction(() => {
+        this.items.delete(newAct.view); 
+      });
+    });
+    this.saveButton = new ControlButton("Salvar");
+    this.downloadButton = new ControlButton("Download");
+    this.resumeButton = new ControlButton("Carregar");
+    this.uploadButton = new ControlButton("Upload");
+    this.saveButton.setAction(() => this.save());
+    this.downloadButton.setAction(() => this.download());
+//    this.resumeButton.setAction(() => this.resume());
+//    this.uploadButton.setAction(() => this.upload());
+    this.btnLine = new Row();
+    this.btnLine.add(this.saveButton);
+    this.btnLine.add(this.resumeButton);
+    this.btnLine.add(this.downloadButton);
+    this.btnLine.add(this.uploadButton);
+    this.container = new TitledBlock("DOImaker");
+    this.container.add(this.pager);
+    this.container.add(this.btnLine);
+  }
+  get view() { return this.container; }
+  get object() {
+    const doiJson = [];
+    for (const act of this.items.values()) {
+      // TODO: maybe validate before this
+      act.declaracoes.forEach((dec) => doiJson.push(dec));
+    }
+    return { "declaracoes": doiJson };
+  }
+
+  get json() { return JSON.stringify(this.object); }
+  save() { saveObject(this.object,"draftDoi"); }
+  download() { downloadObject(this.object,"doi.json"); }
+  // TODO: resume and upload
+  // resume() { loadObject("draftDoi"); }
+//  upload() { this.load(readJson("doi.json").declaracoes); }
+
+  init() {
+    document.getElementById("app").appendChild(this.view.html);
+  }
+}
+
+// ENTRYPOINT
+
+const doimaker = new DoiMaker();
+doimaker.init();
