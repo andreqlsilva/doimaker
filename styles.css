@@ -40,7 +40,7 @@ body {
   border: none;
   box-shadow: none;
   padding: 0;
-  margin-bottom: 15px;
+  margin-bottom: 25px;
 }
 
 /* A horizontal flex container */
@@ -139,9 +139,8 @@ h3.HeaderElement {
 /* === INPUT & CONTROL COMPONENTS === */
 
 /* Common styles for all inputs */
-.InputElement,
-.MenuInput,
-.FilePicker {
+.InputElement, .TextInput, .NumberInput, .DateInput,
+.MenuInput, .FilePicker {
   padding: 10px 12px;
   border: 1px solid #ccc;
   border-radius: 5px;
@@ -159,7 +158,7 @@ h3.HeaderElement {
 
 /* NEW: Fixes inputs inside a Row (like RepList, Operacao) */
 /* Since Row.add forces 'display: inline', we must override width */
-.Row > .InputElement,
+.Row > .InputElement, .Row > .TextInput, .Row > .NumberInput, .Row > .DateInput,
 .Row > .MenuInput {
   width: 200px; /* Give a default width */
 }
@@ -169,6 +168,16 @@ h3.HeaderElement {
 .Row > .LabelElement {
   display: inline;
   margin-bottom: 0;
+}
+
+/* For NumberInputs in forms (65% of 100%) */
+.NumberInput {
+  width: 65%;
+}
+
+/* For NumberInputs in a Row (65% of 200px) */
+.Row > .NumberInput {
+  width: 130px;
 }
 
 .CheckboxInput {
@@ -348,13 +357,15 @@ h3.HeaderElement {
   display: none !important;
 }
 
-/* The .picked class for selected list items */
-.ListEntry.picked {
+/* The .picked class, scoped ONLY to Pager nav items */
+/* This selects a .ListEntry.picked only if it's a descendant of
+   the .EditableList that is a *direct child* of a .Pager */
+.Pager > .EditableList .ListEntry.picked {
   background-color: #e6f7ff;
   border-color: #007bff;
 }
 
-.ListEntry.picked .TextualElement {
+.Pager > .EditableList .ListEntry.picked .TextualElement {
   font-weight: 700;
   color: #0056b3;
 }
