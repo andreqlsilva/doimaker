@@ -2012,6 +2012,9 @@ class Imovel extends DoiEntity {
             part[prop] = subj[prop].value;
           }
         }
+        if (part.indicadorRepresentante) {
+          part.representantes = subj.representantes;
+        }
         parts.push(part);
       }
     }
