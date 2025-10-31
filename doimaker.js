@@ -62,33 +62,6 @@ const doiJson = `{
         }
       ]
     },
-    "naturezaTitulo": {
-      "info" : "NaturezaTitulo",
-      "type": "string",
-      "description": "Informar a natureza do título registrado",
-      "oneOf": [
-        {
-          "const": "2",
-          "title": "Escritura Pública"
-        },
-        {
-          "const": "1",
-          "title": "Instrumento particular com força de escritura pública"
-        },
-        {
-          "const": "3",
-          "title": "Título Judicial"
-        },
-        {
-          "const": "4",
-          "title": "Contratos ou termos administrativos"
-        },
-        {
-          "const": "5",
-          "title": "Atos autênticos de países estrangeiros"
-        }
-      ]
-    },
     "dataLavraturaRegistroAverbacao": {
       "type": "string",
       "format": "date",
@@ -109,29 +82,10 @@ const doiJson = `{
       "description": "Páginas/Folhas (indicar nº início-fim)",
       "maxLength": 7
     },
-    "existeDoiAnterior": {
-      "type": "boolean",
-      "description": "Informar se consta a expressão 'Emitida a DOI' no título registrado"
-    },
     "matriculaNotarialEletronica": {
       "type": "string",
       "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD.",
       "maxLength": 24
-    },
-    "tipoLivro": {
-      "info" : "TipoLivro",
-      "type": "string",
-      "description": "Selecionar o livro em que o ato foi escriturado dentre as opções da caixa",
-      "oneOf": [
-        {
-          "const": "1",
-          "title": "Lv.2-Registro Geral(matrícula)"
-        },
-        {
-          "const": "2",
-          "title": "Transcrição das Transmissões"
-        }
-      ]
     },
     "retificacaoAto": {
       "type": "boolean",
@@ -492,16 +446,6 @@ const doiJson = `{
       "type": "number",
       "format": "int32",
       "description": "Informar o número de ordem da transcrição. Até o limite de 8 inteiros"
-    },
-    "numeroRegistro": {
-      "type": "string",
-      "description": "Informar o número de ordem do registro do título",
-      "maxLength": 30
-    },
-    "numeroRegistroAverbacao": {
-      "type": "string",
-      "description": "Informar o número do registro/averbação",
-      "maxLength": 7
     },
     "tipoOperacaoImobiliaria": {
       "description": "Selecionar o tipo de operação imobiliária dentre as opções da caixa",
@@ -1491,10 +1435,12 @@ class Subject extends DoiEntity {
   #representantes;
   constructor (position) {
     super(position,[
+      "indicadorConjuge",
       "indicadorEspolio",
       "indicadorEstrangeiro",
       "indicadorNaoConstaParticipacaoOperacao",
-      "indicadorNiIdentificado"
+      "indicadorNiIdentificado",
+      "indicadorRepresentante"
     ]);
     this.#representantes = new RepList();
     this.view = this.render();
@@ -1676,7 +1622,6 @@ class Imovel extends DoiEntity {
         const part = { "ni": ni, participacao: op[ni] }
         for (const prop of Object.keys(subj))
         if (subj[prop] instanceof DoiProp) {
-          console.log(prop+'='+subj[prop].value);
           if (subj[prop].value != 0
             || subj.requiredList.includes(prop)) {
             part[prop] = subj[prop].value;
@@ -1691,7 +1636,8 @@ class Imovel extends DoiEntity {
   get doi() {
     const doi = {};
     for (const propName of Object.keys(doiDefs[this.schemaName])) {
-      if (this[propName].value!= 0 || this.requiredList.includes(propName))
+      if (this[propName].value!= 0
+        || this.requiredList.includes(propName))
         doi[propName] = this[propName].value;
     }
     doi.alienantes = this.participantes(this.alienacao);
@@ -1781,17 +1727,15 @@ class Ato extends DoiEntity {
   get declaracoes() {
     const declaracoes = [];
     const doiList = this.imoveisList;
-    const doiAto = {};
-    for (const prop of Object.keys(this)) {
-      if (this[prop] instanceof DoiProp
-        && (this[prop].value != 0
-          || this.requiredList.includes(prop))) {
-          doiAto[prop] = this[prop].value;
+    const atoDoi = {};
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      if (this[propName].value != 0
+          || this.requiredList.includes(propName)) {
+          atoDoi[propName] = this[propName].value;
       }
     }
     for (const imovel of doiList) {
-      // TODO: add all of doiAto's DoiProps
-      declaracoes.push(imovel.doi);
+      declaracoes.push({...atoDoi, ...imovel.doi});
     }
     return declaracoes;
   }
