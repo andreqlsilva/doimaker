@@ -1,0 +1,2210 @@
+<!doctype HTML>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+    <title>DOI maker 1.0</title>
+    <style>
+    /* === GLOBAL STYLES === */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Helvetica,
+        Arial, sans-serif;
+      background-color: #f4f7f6;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    /* Center the main app container */
+    #app {
+      max-width: 1400px;
+      margin: 20px auto;
+    }
+
+    /* === LAYOUT COMPONENTS === */
+
+    /* Base container for most components */
+    .Block {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      margin-bottom: 10px;
+      background-color: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    /* NEW: Styles for the new InputBlock container */
+    .InputBlock {
+      background-color: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+      margin-bottom: 25px;
+    }
+
+    /* A horizontal flex container */
+    .Row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      /* Rows inside blocks shouldn't have the block styling */
+      border: none;
+      background-color: transparent;
+      padding: 5px 0;
+      margin-bottom: 0;
+      box-shadow: none;
+    }
+
+    /* A vertical flex container for forms */
+    .Form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    /* A 2-column flex layout */
+    /* Applies to DualPane and Pager (which extends DualPane) */
+    .DualPane,
+    .Pager {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      /* These are layout containers, so override block styles */
+      background-color: transparent;
+      border: none;
+      padding: 0;
+      box-shadow: none;
+      margin-bottom: 10px;
+    }
+
+    /* --- Children of a base DualPane --- */
+    .DualPane > .Block {
+      min-width: 0; /* Allows panes to shrink */
+    }
+    /* Left pane (1/7) */
+    .DualPane > .Block:first-child {
+      flex: 1;
+    }
+    /* Right pane (6/7) */
+    .DualPane > .Block:last-child {
+      flex: 6;
+    }
+
+    /* === TEXT & DISPLAY COMPONENTS === */
+
+    h1,
+    h2,
+    h3,
+    p,
+    label {
+      margin: 0;
+      padding: 0;
+    }
+
+    .HeaderElement {
+      margin-top: 15px;
+      margin-bottom: 10px;
+      color: #111;
+    }
+
+    h1.HeaderElement {
+      font-size: 2em;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 5px;
+    }
+    h2.HeaderElement {
+      font-size: 1.75em;
+    }
+    h3.HeaderElement {
+      font-size: 1.5em;
+      color: #222;
+    }
+
+    /* This is the default for labels (e.g., in InputBlock) */
+    .LabelElement {
+      font-weight: 600;
+      margin-right: 5px;
+      display: block; /* Forces the label to take its own line */
+      margin-bottom: 5px; /* Adds a small space below the label */
+    }
+
+    /* Labels in a Form stack on top of their inputs */
+    .Form .LabelElement {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    /* === INPUT & CONTROL COMPONENTS === */
+
+    /* Common styles for all inputs */
+    .InputElement, .TextInput, .NumberInput, .DateInput,
+    .MenuInput, .FilePicker {
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      width: 100%;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .InputElement:focus,
+    .MenuInput:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    }
+
+    /* NEW: Fixes inputs inside a Row (like RepList, Operacao) */
+    /* Since Row.add forces 'display: inline', we must override width */
+    .Row > .InputElement, .Row > .TextInput, .Row > .NumberInput, .Row > .DateInput,
+    .Row > .MenuInput {
+      width: 200px; /* Give a default width */
+    }
+
+    /* NEW: Fixes labels inside a Row (like RepList, Operacao) */
+    /* Overrides the 'display: block' rule from .LabelElement */
+    .Row > .LabelElement {
+      display: inline;
+      margin-bottom: 0;
+    }
+
+    /* For NumberInputs in forms (65% of 100%) */
+    .NumberInput {
+      width: 65%;
+    }
+
+    /* For NumberInputs in a Row (65% of 200px) */
+    .Row > .NumberInput {
+      width: 130px;
+    }
+
+    .CheckboxInput {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      accent-color: #007bff;
+    }
+
+    .ControlButton {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+
+    .ControlButton:hover {
+      background-color: #0056b3;
+    }
+
+    .ControlButton:active {
+      transform: translateY(1px);
+    }
+
+    /* === COMPOSITE COMPONENTS === */
+
+    /* Blocks with a distinct header bar */
+    .TitledBlock {
+      border-color: #ccc;
+    }
+
+    .BlockTitle {
+      /* This is a .Row, so it's already flex */
+      justify-content: space-between; /* Pushes title and buttons apart */
+      align-items: center;
+      background-color: #f9f9f9;
+      padding: 12px 15px;
+      /* Bleed to edges of parent padding */
+      margin: -15px -15px 15px -15px;
+      border-bottom: 1px solid #ccc;
+      border-radius: 8px 8px 0 0;
+      flex-wrap: nowrap; /* Forces the title and button to stay on one line */
+    }
+
+    /* This targets the "titleLine" (a Row) inside the BlockTitle */
+    .BlockTitle > .Row {
+      flex-grow: 1; /* Let the title row grow */
+      flex-shrink: 1; /* Allow the title row to shrink */
+      min-width: 0; /* CRITICAL: Allows shrinking below content size */
+    }
+
+    /* This adds the "..." for long titles like "Alienantes" */
+    .BlockTitle .TextualElement {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 10px; /* Adds space between text and button */
+      font-weight: 700;
+      font-size: 1.25em;
+    }
+
+    /* Main App Title */
+    .DoiMaker > .BlockTitle {
+      background-color: #343a40;
+      color: white;
+      border-bottom: none;
+    }
+
+    /* --- EditableList --- */
+    .EditableList {
+      background-color: #fdfdfd;
+    }
+
+    /* Style the '+' (add) button in the list header */
+    .EditableList > .BlockTitle .ControlButton {
+      background-color: #28a745;
+      min-width: 40px; /* Give it a nice roundish shape */
+    }
+    .EditableList > .BlockTitle .ControlButton:hover {
+      background-color: #218838;
+    }
+
+    /* A single entry in the list */
+    .ListEntry {
+      /* It's a .Row, so it's flex */
+      border: 1px solid #eee;
+      border-radius: 5px;
+      padding: 5px 10px;
+      margin-bottom: 8px;
+      background-color: #fff;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    /* The main clickable part of the list entry */
+    .ListEntry > .Row:first-child {
+      cursor: pointer;
+      flex-grow: 1; /* Make the clickable part take up space */
+      padding: 5px;
+      border: none;
+      box-shadow: none;
+    }
+
+    /* Style the '-' (delete) button */
+    .ListEntry .ControlButton {
+      background-color: #dc3545;
+      min-width: 40px;
+      margin-left: 10px;
+    }
+    .ListEntry .ControlButton:hover {
+      background-color: #c82333;
+    }
+
+    /* This positions the delete button, overriding 'display: inline' */
+    .ListEntry > .ControlButton {
+      position: absolute;
+      right: 10px; /* 10px from the right edge */
+      top: 50%; /* 50% down from the top */
+      transform: translateY(-50%); /* This centers it vertically */
+      padding: 5px 12px; /* Reduces vertical padding */
+      font-size: 0.9rem; /* Makes the text slightly smaller */
+    }
+
+    /* --- Pager (UPDATED) --- */
+
+    /* This is the left pane (the nav, which is an EditableList) */
+    .Pager > .EditableList:first-child {
+      flex: 1; /* 20% ratio */
+      max-width: 180px;
+      background-color: #fcfcfc;
+      min-width: 100px; /* Protects nav from shrinking */
+    }
+
+    /* This is the right pane (the pane, which is a Block) */
+    .Pager > .Block:last-child {
+      flex: 4; /* 80% ratio */
+      background-color: #fff;
+      border-left: 1px solid #e0e0e0;
+      min-width: 0; /* Allows this pane to shrink */
+    }
+
+    /* --- Pager Pane Header Font Size Reduction (UPDATED) --- */
+
+    /* Targets H1 headers inside the PagerPane (right side) */
+    .Pager > .Block:last-child h1.HeaderElement {
+      font-size: 1.5em; /* Default was 2em */
+    }
+
+    /* Targets H2 headers inside the PagerPane */
+    .Pager > .Block:last-child h2.HeaderElement {
+      font-size: 1.25em; /* Default was 1.75em */
+    }
+
+    /* Targets H3 headers inside the PagerPane */
+    .Pager > .Block:last-child h3.HeaderElement {
+      font-size: 1.15em; /* Default was 1.5em */
+    }
+
+    /* --- RepList (Representantes) --- */
+    .RepList .ListEntry .LabelElement {
+      flex-shrink: 0; /* Don't let the label shrink */
+    }
+    .RepList .ListEntry .TextInput {
+      flex-grow: 2; /* Let the input field take up most of the space */
+    }
+
+    /* === STATE CLASSES === */
+
+    /* The 'hidden' attribute used by .show() and .hide() */
+    [hidden] {
+      display: none !important;
+    }
+
+    /* The .picked class, scoped ONLY to Pager nav items */
+    /* This selects a .ListEntry.picked only if it's a descendant of
+    the .EditableList that is a *direct child* of a .Pager */
+    .Pager > .EditableList .ListEntry.picked {
+      background-color: #e6f7ff;
+      border-color: #007bff;
+    }
+
+    .Pager > .EditableList .ListEntry.picked .TextualElement {
+      font-weight: 700;
+      color: #0056b3;
+    }
+  </style>
+  </head>
+  <body id="app">
+  </body>
+  <script>
+// BEGIN SCHEMA
+const doiJson = `{
+  "Ato": {
+    "tipoDeclaracao": {
+      "info" : "TipoDeclaracao",
+      "description": "Tipo da declaração",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "0",
+          "title": "Original"
+        }
+      ]
+    },
+    "tipoServico" : {
+      "info": "TipoServico",
+      "type": "string",
+      "description": "Selecionar o tipo de serviço executado em relação à operação imobiliária declarada",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Notarial"
+        },
+        {
+          "const": "2",
+          "title": "Registro de Imóveis"
+        },
+        {
+          "const": "3",
+          "title": "Registro de títulos e documentos"
+        }
+      ]
+    },
+    "tipoAto": {
+      "info" : "TipoAto",
+      "description": "Selecionar o tipo do ato em função do tipo de cartório",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Escritura"
+        },
+        {
+          "const": "2",
+          "title": "Procuração"
+        },
+        {
+          "const": "3",
+          "title": "Averbação"
+        },
+        {
+          "const": "4",
+          "title": "Registro"
+        },
+        {
+          "const": "5",
+          "title": "Registros para fins de publicidade"
+        },
+        {
+          "const": "6",
+          "title": "Registro para fins de conservação"
+        }
+      ]
+    },
+    "dataLavraturaRegistroAverbacao": {
+      "type": "string",
+      "format": "date",
+      "description": "Informar a data de lavratura / registro / averbação"
+    },
+    "dataNegocioJuridico": {
+      "type": "string",
+      "format": "date",
+      "description": "Informar a data da celebração do negócio jurídico"
+    },
+    "numeroLivro": {
+      "type": "string",
+      "description": "Informar o número do livro em que o ato foi escriturado ou o título foi registrado",
+      "maxLength": 7
+    },
+    "folha": {
+      "type": "string",
+      "description": "Páginas/Folhas (indicar nº início-fim)",
+      "maxLength": 7
+    },
+    "matriculaNotarialEletronica": {
+      "type": "string",
+      "description": "Informar a Matrícula Notarial Eletrônica (MNE). Formato: CCCCCCAAAAMMDDNNNNNNNNDD.",
+      "maxLength": 24
+    },
+    "retificacaoAto": {
+      "type": "boolean",
+      "description": "Informar se na operação atual houve retificação de ato anteriormente declarado"
+    }
+  },
+  "Adquirente": {
+    "ni": {
+      "type": "string",
+      "description": "Identificador da parte",
+      "minLength": 11,
+      "maxLength": 14
+    },
+    "indicadorNiIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta CPF da(s) parte(s) no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)"
+    },
+    "motivoNaoIdentificacaoNi": {
+      "info": "TipoMotivoNaoIdentificacaoNiParte",
+      "description": "Informar o motivo da ausência do CPF da parte",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Sem CPF/CNPJ - Decisão Judicial"
+        },
+        {
+          "const": "2",
+          "title": "Não consta no documento"
+        }
+      ]
+    },
+    "indicadorConjuge": {
+      "type": "boolean",
+      "description": "Informar se o adquirente possui cônjuge"
+    },
+    "indicadorConjugeParticipa": {
+      "type": "boolean",
+      "description": "Informar se o cônjuge participa da operação"
+    },
+    "indicadorCpfConjugeIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta o CPF do cônjuge no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)"
+    },
+    "cpfConjuge": {
+      "type": "string",
+      "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "regimeBens": {
+      "info": "RegimeBens",
+      "description": "Informar o regime de bens no casamento",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Separação de Bens"
+        },
+        {
+          "const": "2",
+          "title": "Comunhão Parcial de Bens"
+        },
+        {
+          "const": "3",
+          "title": "Comunhão Universal de Bens"
+        },
+        {
+          "const": "4",
+          "title": "Participação Final nos Aquestos"
+        }
+      ]
+    },
+    "indicadorEspolio": {
+      "type": "boolean",
+      "description": "Informar se a aquisição foi feita em nome de espólio."
+    },
+    "cpfInventariante": {
+      "type": "string",
+      "description": "CPF do Inventariante",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "indicadorEstrangeiro": {
+      "type": "boolean",
+      "description": "Informar se o adquirente é estrangeiro"
+    },
+    "indicadorNaoConstaParticipacaoOperacao": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o percentual de participação não consta nos documentos"
+    },
+    "indicadorRepresentante": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o adquirente outorgou mandato a pessoa física ou jurídica para representá-lo na operação imobiliária informada pela serventia"
+    }
+  },
+  "Alienante": {
+    "ni": {
+      "type": "string",
+      "description": "Identificador da parte",
+      "minLength": 11,
+      "maxLength": 14
+    },
+    "indicadorNiIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta CPF da(s) parte(s) no documento (título a ser registrado, matrícula/transcrição, escritura pública etc)"
+    },
+    "motivoNaoIdentificacaoNi": {
+      "info": "TipoMotivoNaoIdentificacaoNiParte",
+      "description": "Informar o motivo da ausência do CPF da parte",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Sem CPF/CNPJ - Decisão Judicial"
+        },
+        {
+          "const": "2",
+          "title": "Não consta no documento"
+        }
+      ]
+    },
+    "indicadorConjuge": {
+      "type": "boolean",
+      "description": "Informar se o alienante possui cônjuge"
+    },
+    "indicadorConjugeParticipa": {
+      "type": "boolean",
+      "description": "Informar se o cônjuge participa da operação"
+    },
+    "indicadorCpfConjugeIdentificado": {
+      "type": "boolean",
+      "description": "Informar se consta o CPF do cônjuge no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)"
+    },
+    "cpfConjuge": {
+      "type": "string",
+      "description": "Informar o CPF do cônjuge que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc)",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "regimeBens": {
+      "info": "RegimeBens",
+      "description": "Informar o regime de bens no casamento",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Separação de Bens"
+        },
+        {
+          "const": "2",
+          "title": "Comunhão Parcial de Bens"
+        },
+        {
+          "const": "3",
+          "title": "Comunhão Universal de Bens"
+        },
+        {
+          "const": "4",
+          "title": "Participação Final nos Aquestos"
+        }
+      ]
+    },
+    "indicadorEspolio": {
+      "type": "boolean",
+      "description": "Informar se a alienação foi feita por espólio."
+    },
+    "cpfInventariante": {
+      "type": "string",
+      "description": "CPF do Inventariante",
+      "minLength": 11,
+      "maxLength": 11
+    },
+    "indicadorEstrangeiro": {
+      "type": "boolean",
+      "description": "Informar se o alienante é estrangeiro"
+    },
+    "indicadorNaoConstaParticipacaoOperacao": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o percentual de participação não consta nos documentos"
+    },
+    "indicadorRepresentante": {
+      "type": "boolean",
+      "description": "Indicador que sinaliza que o(s) alienante(s) outorgou (aram) mandato a pessoa física ou jurídica para representá-lo(s) na operação imobiliária informada pela serventia"
+    }
+  },
+  "Imovel": {
+    "codigoIbge": {
+      "type": "string",
+      "description": "Informar o código IBGE do município onde se localiza o imóvel",
+      "maxLength": 7
+    },
+    "destinacao": {
+      "info": "Destinacao",
+      "type": "string",
+      "description": "Indica se o imóvel é rual ou urbano",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "Urbano"
+        },
+        {
+          "const": "3",
+          "title": "Rural"
+        }
+      ]
+    },
+    "tipoImovel": {
+      "description": "Classificação de acordo com o uso finalistico da UI",
+      "info": "TipoImovel",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "15",
+          "title": "Loja"
+        },
+        {
+          "const": "31",
+          "title": "Galpão"
+        },
+        {
+          "const": "65",
+          "title": "Apartamento"
+        },
+        {
+          "const": "67",
+          "title": "Casa"
+        },
+        {
+          "const": "69",
+          "title": "Fazenda/Sítio/Chácara"
+        },
+        {
+          "const": "71",
+          "title": "Terreno/Fração"
+        },
+        {
+          "const": "89",
+          "title": "Outros"
+        },
+        {
+          "const": "90",
+          "title": "Sala"
+        },
+        {
+          "const": "91",
+          "title": "Conjunto de salas"
+        },
+        {
+          "const": "92",
+          "title": "Sobreloja"
+        },
+        {
+          "const": "93",
+          "title": "Vaga de Garagem"
+        },
+        {
+          "const": "94",
+          "title": "Laje"
+        },
+        {
+          "const": "95",
+          "title": "Estacionamento"
+        },
+        {
+          "const": "96",
+          "title": "Barraco"
+        }
+      ]
+    },
+    "tipoLogradouro": {
+      "type": "string",
+      "description": "Tipo logradouro do endereço do imóvel",
+      "maxLength": 30
+    },
+    "nomeLogradouro": {
+      "type": "string",
+      "description": "Logradouro do endereço do imóvel",
+      "maxLength": 150
+    },
+    "complementoEndereco": {
+      "type": "string",
+      "description": "Complemento do endereço do imóvel",
+      "maxLength": 100
+    },
+    "numeroImovel": {
+      "type": "string",
+      "description": "Número do endereço do imóvel",
+      "maxLength": 10
+    },
+    "complementoNumeroImovel": {
+      "type": "string",
+      "description": "Complemente do número do endereço do imóvel",
+      "maxLength": 10
+    },
+    "bairro": {
+      "type": "string",
+      "description": "Bairro do endereço do imóvel",
+      "maxLength": 150
+    },
+    "localizacao": {
+      "type": "string",
+      "description": "Informar dados que possam ajudar na localização do imóvel, tais como: distrito, povoado, colônia, núcleo, rodovia/km, ramal, gleba, lote, etc. Exemplo: Partindo da Sede do Município,margem esquerda da BR 101, Km 60",
+      "maxLength": 200
+    },
+    "cep": {
+      "type": "string",
+      "description": "CEP do endereço do imóvel",
+      "maxLength": 8
+    },
+    "indicadorAreaLoteNaoConsta": {
+      "type": "boolean",
+      "description": "Indicador de que a área do imóvel não consta nos Documentos. Vide Observações"
+    },
+    "areaImovel": {
+      "type": "number",
+      "description": "Área do lote urbano em m2 ou área do imóvel rural em ha conforme matrícula. (máx. 13 inteiros e 2 casas)."
+    },
+    "indicadorAreaConstruidaNaoConsta": {
+      "type": "boolean",
+      "description": "Indicador de que a área de construção do imóvel não consta nos Documentos"
+    },
+    "areaConstruida": {
+      "type": "number",
+      "description": "Área Construída (m2). Informar de acordo com a matrícula. Até o limite de 12 inteiros e 4 casas decimais. Preenchimento em m2"
+    },
+    "matricula": {
+      "type": "string",
+      "description": "Informar o número de ordem da matrícula do imóvel",
+      "maxLength": 7
+    },
+    "inscricaoMunicipal": {
+      "type": "string",
+      "description": "Código da inscrição imobiliária",
+      "maxLength": 45
+    },
+    "cib": {
+      "type": "string",
+      "description": "Informar o código do imóvel no Cadastro Imobiliário Brasileiro (CIB). Cálculo do DV quando os caracteres originais são exclusivamente numéricos:algoritimo utilizado pelo Nirf, segundo a regra do Módulo 11. Cálculo do DV quando os caracteres originais não são exclusivamente numéricos: a) para cada caractere codificado, o seu valor será multiplicado pela sequência de fatores 4,3,9,5,7,1, e 8; b) a soma dos produtos será dividida por 31",
+      "maxLength": 8
+    },
+    "codigoIncra": {
+      "type": "string",
+      "description": "Informar o código do imóvel no Sistema Nacional de Cadastro Rural (SNCR)",
+      "maxLength": 13
+    },
+    "denominacao": {
+      "type": "string",
+      "description": "Informar o nome do imóvel rural que consta no documento (título a ser registrado, matrícula/transcrição,escritura pública etc), caso exista",
+      "maxLength": 200
+    },
+    "codigoNacionalMatricula": {
+      "type": "string",
+      "description": "Informar o Código Nacional de Matrícula (CNM). Formato: CCCCCCLNNNNNNNDD - O CNM informado será validado através do DV informado, seguindo o algoritmo módulo 97 base 10, conforme norma ISO 7064:2023",
+      "maxLength": 16
+    },
+    "transcricao": {
+      "type": "number",
+      "format": "int32",
+      "description": "Informar o número de ordem da transcrição. Até o limite de 8 inteiros"
+    },
+    "tipoOperacaoImobiliaria": {
+      "description": "Selecionar o tipo de operação imobiliária dentre as opções da caixa",
+      "info":"TipoOperacaoImobiliaria",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "11",
+          "title": "Compra e Venda"
+        },
+        {
+          "const": "13",
+          "title": "Permuta"
+        },
+        {
+          "const": "15",
+          "title": "Adjudicação"
+        },
+        {
+          "const": "19",
+          "title": "Doação em Pagamento"
+        },
+        {
+          "const": "21",
+          "title": "Distrato de Negócio"
+        },
+        {
+          "const": "31",
+          "title": "Procuração em Causa Própria"
+        },
+        {
+          "const": "33",
+          "title": "Promessa de Compra e Venda"
+        },
+        {
+          "const": "35",
+          "title": "Promessa de Cessão de Direitos"
+        },
+        {
+          "const": "37",
+          "title": "Cessão de Direitos"
+        },
+        {
+          "const": "39",
+          "title": "Outros"
+        },
+        {
+          "const": "41",
+          "title": "Alienação por iniciativa particular ou leilão judicial"
+        },
+        {
+          "const": "45",
+          "title": "Incorporação e loteamento"
+        },
+        {
+          "const": "47",
+          "title": "Integralização/Subscrição de capital"
+        },
+        {
+          "const": "55",
+          "title": "Doação em adiantamento da legítima"
+        },
+        {
+          "const": "56",
+          "title": "Aforamento"
+        },
+        {
+          "const": "57",
+          "title": "Casamento em comunhão universal de bens"
+        },
+        {
+          "const": "58",
+          "title": "Cisão total ou parcial"
+        },
+        {
+          "const": "59",
+          "title": "Compra e venda de imóvel gravado por enfiteuse"
+        },
+        {
+          "const": "60",
+          "title": "Concessão de Direito Real de Uso (CDRU)"
+        },
+        {
+          "const": "61",
+          "title": "Concessão de Uso Especial para Fins de Moradia (CUEM)"
+        },
+        {
+          "const": "62",
+          "title": "Consolidação da Propriedade em Nome do Fiduciário"
+        },
+        {
+          "const": "63",
+          "title": "Desapropriação para fins de Reforma Agrária"
+        },
+        {
+          "const": "64",
+          "title": "Desapropriação, exceto para Reforma Agrária"
+        },
+        {
+          "const": "65",
+          "title": "Direito de laje"
+        },
+        {
+          "const": "66",
+          "title": "Direito de superfície"
+        },
+        {
+          "const": "67",
+          "title": "Doação, exceto em Adiantamento de Legítima"
+        },
+        {
+          "const": "68",
+          "title": "Incorporação"
+        },
+        {
+          "const": "69",
+          "title": "Inventário"
+        },
+        {
+          "const": "70",
+          "title": "Part. Separação/Divórcio/União Estável"
+        },
+        {
+          "const": "71",
+          "title": "Retorno de Capital Próprio na Extinção de Pessoa Jurídica"
+        },
+        {
+          "const": "72",
+          "title": "Retorno de Capital Próprio, exceto na Extinção de Pessoa Jurídica"
+        },
+        {
+          "const": "73",
+          "title": "Título de Domínio - TD"
+        },
+        {
+          "const": "74",
+          "title": "Usucapião"
+        }
+      ]
+    },
+    "descricaoOutrasOperacoesImobiliarias": {
+      "type": "string",
+      "description": "Descrever a operação imobiliária se o valor selecionado na caixa for 'Outras Operações Imobiliárias'",
+      "maxLength": 30
+    },
+    "indicadorPermutaBens": {
+      "type": "boolean",
+      "description": "Informar se houve permuta de bens na operação imobiliária"
+    },
+    "indicadorAlienacaoFiduciaria": {
+      "type": "boolean",
+      "description": "Informar se o imóvel foi objeto de alienação fiduciária na operação"
+    },
+    "tipoParteTransacionada": {
+      "description": "Selecionar se a informação da parte transacionada do  imóvel será em percentual ou área",
+      "info": "TipoParteTransacionada",
+      "type": "string",
+      "oneOf": [
+        {
+          "const": "1",
+          "title": "%"
+        },
+        {
+          "const": "2",
+          "title": "ha/m²"
+        }
+      ]
+    },
+    "valorParteTransacionada": {
+      "type": "number",
+      "description": "Informar a quantidade de metros/hectares ou o percentual que foi objeto da operação imobiliária, conforme opção no campo tipoParteTransacionada. Até o limite de 18 inteiros e 2 casas decimais"
+    },
+    "indicadorNaoConstaValorOperacaoImobiliaria": {
+      "type": "boolean",
+      "description": "Assinalar a caixa se o valor da operação imobiliária não constar do documento"
+    },
+    "valorOperacaoImobiliaria": {
+      "type": "number",
+      "description": "Informar o valor da operação imobiliária. Até o limite de 18 inteiros e 2 casas decimais"
+    },
+    "indicadorNaoConstaValorBaseCalculoItbiItcmd": {
+      "type": "boolean",
+      "description": "Assinalar a caixa se o valor da base de cálculo do ITBI/ITCMD não constar do documento"
+    },
+    "valorBaseCalculoItbiItcmd": {
+      "type": "number",
+      "description": "Informar o valor da base de cálculo do ITBI ou do ITCMD. Até o limite de 18 inteiros e 2 casas decimais"
+    },
+    "formaPagamento": {
+      "info":"FormaPagamento",
+      "type": "string",
+      "description": "Selecionar a forma de pagamento dentre as opções da caixa",
+      "oneOf": [
+        {
+          "const": "5",
+          "title": "Quitado à vista"
+        },
+        {
+          "const": "10",
+          "title": "Quitado a prazo"
+        },
+        {
+          "const": "11",
+          "title": "Quitado sem informação da forma de pagamento"
+        },
+        {
+          "const": "7",
+          "title": "A prazo"
+        },
+        {
+          "const": "9",
+          "title": "Não de aplica"
+        }
+      ]
+    },
+    "valorPagoAteDataAto": {
+      "type": "number",
+      "description": "Informar o valor pago até a data do ato. Este campo somente deve ser  incluído se a opção 'A prazo' do campo 'forma de pagamento' for escolhida. Até o limite de 18 inteiros e 2 casas decimais"
+    },
+    "mesAnoUltimaParcela": {
+      "type": "string",
+      "format": "date",
+      "description": "Informar o mês e o ano de vencimento da última parcela para pagamento a prazo"
+    },
+    "indicadorPagamentoDinheiro": {
+      "type": "boolean",
+      "description": "Informar se houve pagamento em dinheiro"
+    },
+    "valorPagoMoedaCorrenteDataAto": {
+      "type": "number",
+      "description": "Informar o valor pago em espécie até a data do ato. Este campo somente deve ser  incluído se a informação no campo “indicadorPagamentoDinheiro” for True. Até o limite de 18 inteiros e 2 casas decimais"
+    },
+    "indicadorImovelPublicoUniao": {
+      "type": "boolean",
+      "description": "Informar se o imóvel objeto da operação imobiliária é imóvel público da União"
+    },
+    "registroImobiliarioPatrimonial": {
+      "type": "string",
+      "description": "Informar a identificação do imóvel no cadastro da Secretaria de Patrimônio da União (SPU), ou seja, o número do Registro Imobiliário Patrimonial (RIP)",
+      "minLength": 13,
+      "maxLength": 13
+    },
+    "certidaoAutorizacaoTransferencia": {
+      "type": "string",
+      "description": "Informar o número da Certidão de Autorização para Transferência (CAT) emitida pela Secretaria de Patrimônio da União (SPU)",
+      "maxLength": 11
+    }
+  }
+}`;
+// END SCHEMA
+
+// LOCAL STORAGE LIBRARY 
+
+function saveObject(obj,key) {
+  localStorage.setItem(key, JSON.stringify(obj));
+}
+
+function loadObject(key) {
+  const item = localStorage.getItem(key);
+  try {
+    if (!item) throw new Error(`No object with key ${key}.`)
+    const obj = JSON.parse(item);
+    return obj;
+  } catch (error) {
+    throw(error);
+  }
+}
+
+function downloadObject(obj,filename) {
+  const content = JSON.stringify(obj,null,2);
+  const file = new Blob([content], {type:'text/plain'});
+  const url = URL.createObjectURL(file);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function readJson(fileobj) {
+  try {
+    const content = await fileobj.text();
+    return JSON.parse(content);
+  } catch (error) {
+    console.error("Couldn't read.")
+    throw (error);
+  }
+}
+
+
+// FRONTEND LIBRARY 
+
+class UIComponent { // extend only
+  static tag = "p";
+  static className = "UIComponent";
+  constructor() {
+    this.ui = true;
+    this.html = document.createElement(this.constructor.tag)
+    this.html.classList.add(this.constructor.className);
+  }
+  show() { this.html.hidden = false; }
+  hide() { this.html.hidden = true; }
+  toggle() { this.html.hidden = !this.html.hidden; }
+  pick() { this.html.classList.add("picked"); }
+  unpick() { this.html.classList.remove("picked"); }
+  showOn(condition) {
+    //TODO
+  }
+  setId(id) { if (id) this.html.setAttribute("id",id); }
+}
+
+class DisplayElement extends UIComponent { // also extend only
+  static tag = "p";
+  static className = "DisplayElement";
+  constructor(title) {
+    super();
+    this.title = title;
+  }
+  get title() { return this._title; }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+  }
+}
+
+class TextualElement extends DisplayElement {
+  static tag = "p";
+  static className = "TextualElement";
+  constructor(title) {
+    super(title);
+    this._title = title ?? "[title]";
+    this.html.textContent = this._title; 
+  }
+  get title() { return this._title; }
+  set title(newTitle) {
+    this._title = newTitle ?? "[title]";
+    this.html.textContent = this._title;
+  }
+}
+
+class LabelElement extends TextualElement {
+  static tag = "label";
+  static className = "LabelElement";
+}
+
+class HElement extends TextualElement { // extend-only
+  static className = "HeaderElement";
+}
+
+class H1Element extends HElement { 
+  static tag = "h1";
+}
+
+class H2Element extends HElement {
+  static tag = "h2";
+}
+
+class H3Element extends HElement {
+  static tag = "h3";
+}
+
+class InputElement extends UIComponent {
+  static tag = "input";
+  static type = "text";
+  static className = "InputElement";
+  static isValid = (newInput) => {
+    return (newInput != null);
+  }
+  #defaultValue;
+  constructor(defaultValue) {
+    super();
+    this.html.setAttribute("type", this.constructor.type);
+    this.defaultValue = defaultValue;
+    this.value = defaultValue;
+  }
+  get value() { return this.html.value; }
+  set value(newValue) {
+    if (this.constructor.isValid(newValue))
+      this.html.value = newValue;
+    else throw new Error("Invalid value.");
+  }
+  get defaultValue() { return this.#defaultValue; }
+  set defaultValue(newDefault) {
+    if (this.constructor.isValid(newDefault))
+      this.#defaultValue = newDefault;
+    else throw new Error("Invalid default.");
+  }
+  reset() { this.html.value = this.defaultValue; }
+  isValid() { return this.constructor.isValid(this.value); }
+}
+
+class TextInput extends InputElement { 
+  static type = "text";
+  static className = "TextInput";
+  static isValid = (newInput) => {
+    return (typeof newInput === "string");
+  };
+  constructor(defaultText) {
+    super(defaultText ?? "");
+  }
+}
+
+class NumberInput extends InputElement {
+  static type = "number";
+  static className = "NumberInput";
+  static isValid = (newInput) => {
+    if (newInput == null || newInput === "") return true;
+    const n = Number(newInput);
+    return (Number.isFinite(n));
+  };
+  constructor(defaultValue) {
+    super(defaultValue ?? 0);
+  }
+  get value() { return Number(this.html.value); }
+  set value(newValue) {
+    if (this.constructor.isValid(newValue))
+      this.html.value = newValue;
+    else throw new Error("Invalid value.");
+  }
+}
+
+class DateInput extends InputElement {
+  static type = "date";
+  static className = "DateInput";
+  static isValid = (newInput) => {
+    return (newInput != null
+      && typeof newInput === "string"
+      && (newInput === ""
+        || !isNaN(Date.parse(newInput)))
+    );
+  };
+  constructor() {
+    super("");
+  }
+}
+
+class CheckboxInput extends UIComponent {
+  static tag = "input";
+  static className = "CheckboxInput";
+  constructor() {
+    super();
+    this.html.setAttribute("type", "checkbox");
+    this.value = false;
+  }
+  set value(newValue) {
+    if (typeof newValue === "boolean")
+      this.html.checked = newValue;
+  }
+  get value() {
+    return this.html.checked;
+  }
+}
+
+class MenuInput extends UIComponent {
+  static tag = "select";
+  static className = "MenuInput";
+  constructor() {
+    super();
+    this.options = {};
+    const voidOption = document.createElement("option");
+    voidOption.value = "0";
+    voidOption.textContent = "";
+    this.html.appendChild(voidOption);
+  }
+  get value() { return this.html.value; }
+  add(code, title) {
+    if (code != null && title != null) {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = title;
+      this.options[code]=option;
+      this.html.appendChild(option);
+    }
+    else throw new Error("Invalid new option.");
+  }
+  remove(code) {
+    if (this.options[code] == null)
+      throw new Error("Option does not exist.");
+    this.html.removeChild(this.options[code]);
+    delete this.options[code];
+  }
+}
+
+class FilePicker extends UIComponent {
+  static tag = "input";
+  static className = "FilePicker";
+  constructor() {
+    super();
+    this.html.setAttribute("type", "file");
+  }
+  get file() {
+    return this.html.files[0];
+  }
+}
+
+class ControlButton extends UIComponent {
+  static tag = "button";
+  static className = "ControlButton";
+  constructor(text) {
+    super();
+    this.html.setAttribute("type", "button");
+    this.html.textContent = text ?? "Button";
+  }
+  setAction(actionFunction) {
+    if (actionFunction instanceof Function) {
+      this.html.onclick = actionFunction;
+    }
+  }
+  addAction(actionFunction) {
+    if (actionFunction instanceof Function) {
+      this.html.addEventListener("click", actionFunction);
+    }
+  }
+  trigger() { this.html.click(); }
+}
+
+class Block extends UIComponent {
+  static tag = "div";
+  static className = "Block";
+  constructor() {
+    super();
+    this.items = [];
+    this.last = -1;
+  }
+  add(newItem) {
+    if (newItem?.ui) {
+      this.items.push(newItem);
+      this.html.appendChild(newItem.html);
+      this.last += 1;
+    }
+    else throw new Error("Invalid new entry.");
+  }
+  remove(index) {
+    if (index < 0) return;
+    if (index == null || index>this.last)
+      throw new Error("Invalid index.");
+    this.html.removeChild(this.items[index].html);
+    this.items.splice(index,1);
+    this.last -= 1;
+  }
+  indexOf(item) { return (this.items.indexOf(item)); }
+  removeItem(item) { this.remove(this.indexOf(item)); }
+}
+
+class InputBlock extends Block {
+  static className = "InputBlock";
+  constructor(label,field) {
+    super();
+    if (!label.ui || !field.ui) throw new Error("Invalid.");
+    this.label = label;
+    this.field = field;
+    super.add(label);
+    super.add(field);
+  }
+  get value() { return this.field.value; }
+}
+
+class Row extends Block {
+  static tag = "div"; // each row takes up the whole width
+  static className = "Row";
+  add(newItem) {
+    super.add(newItem);
+    newItem.html.style.display = "inline";
+  }
+}
+
+class Form extends Block {
+  static tag = "div";
+  static className = "Form";
+  add(newItem) {
+    super.add(newItem);
+    newItem.html.style.display = "block";
+  }
+}
+
+class DualPane extends UIComponent {
+  static tag = "div";
+  static className = "DualPane";
+  constructor() {
+    super();
+    const left = new Block();
+    this.setPane(left,"left");
+    this.html.appendChild(left.html);
+    const right = new Block();
+    this.setPane(right,"right");
+    this.html.appendChild(right.html);
+  }
+  setPane(pane,side) {
+    if (pane == null || !pane.ui)
+      throw new Error("Invalid pane.");
+    this[side]=pane;
+  }
+  setLeft(pane) {
+    this.setPane(pane,'left');
+    this.html.replaceChild(pane.html, this.html.firstChild);
+  }
+  setRight(pane) {
+    this.setPane(pane,'right');
+    this.html.replaceChild(pane.html, this.html.lastChild);
+  }
+}
+
+class ListEntry extends Row {
+  static className = "ListEntry";
+  constructor(line) {
+    super();
+    if (line == null || !line.ui)
+      throw new Error("Invalid line.");
+    this.line = line;
+    this.add(line);
+    this.delBtn = new ControlButton('-');
+    // delete button action must be set by parent
+    this.add(this.delBtn);
+  }
+}
+
+class TitledBlock extends Block {
+  static className = "TitledBlock";
+  constructor(title) {
+    super();
+    this.titleLine = new Row();
+    this.titleLine.html.classList.add("BlockTitle");
+    this.title = new TextualElement(title ?? "[title]");
+    this.titleLine.add(this.title);
+    this.html.prepend(this.titleLine.html);
+  }
+}
+
+class EditableList extends TitledBlock {
+  static className = "EditableList";
+  constructor(title) {
+    super(title); 
+    this.addBtn = new ControlButton('+');
+    // addBtn action set by parent
+    this.titleLine.add(this.addBtn);
+    this.current = -1;
+  }
+  reset() {
+    this.items.forEach((item)=>item.unpick());
+  }
+  select(index) {
+    if (index < 0) return;
+    if (index == null || index>this.last)
+      throw new Error("Invalid index.");
+    if (this.current >= 0)
+      this.items[this.current].unpick();
+    this.items[index].pick();
+    this.current = index;
+  }
+  add(newEntry) {
+    if (newEntry != null && newEntry instanceof ListEntry) {
+      super.add(newEntry);
+      newEntry.delBtn.setAction(() => this.removeItem(newEntry));
+      newEntry.html.addEventListener("click",
+        () => this.select(this.indexOf(newEntry)));
+    }
+    else throw new Error("Invalid list entry.")
+  }
+  remove(index) {
+    super.remove(index);
+    this.current = -1;
+    this.reset();
+  }
+}
+
+class Pager extends DualPane {
+  static className = "Pager";
+  constructor(title) {
+    super();
+    this.pane = new Block();
+    this.pages = new Map();
+    this.current = null;
+    this.nav = new EditableList(title);
+    this.addBtn = this.nav.addBtn;
+    // this.addBtn action set by parent
+    this.setLeft(this.nav);
+    this.setRight(this.pane);
+  }
+  get firstEntry() { return this.pages.keys().next().value; }
+  addPage(newPage) { 
+    if (!(newPage?.ui)) throw new Error("Invalid new page.");
+    const newId = new TextualElement(this.nav.items.length+1);
+    const newEntry = new ListEntry(newId);
+    newEntry.html.addEventListener("click",
+      () => this.select(newEntry));
+    this.nav.add(newEntry);
+    newEntry.delBtn.addAction(() => this.removePage(newEntry));
+    this.pages.set(newEntry,newPage);
+    this.pane.add(newPage);
+    this.select(newEntry);
+  }
+  removePage(entry) {
+    if (entry != null) {
+      this.pane.removeItem(this.pages.get(entry));
+      this.nav.removeItem(entry);
+      this.nav.items.forEach((item,i) => item.line.title = i+1);
+      this.pages.delete(entry);
+      this.current = null;
+      if (this.firstEntry) this.select(this.firstEntry);
+    }
+  }
+  select(entry) {
+    if (entry == null
+      || !this.pages.has(entry)
+      || entry === this.current)
+      return;
+    if (this.current !== null) {
+      this.current.unpick();
+      this.pages.get(this.current).hide();
+    }
+    this.nav.select(this.nav.items.indexOf(entry));
+    this.pages.get(entry).show();
+    this.current = entry;
+  }
+}
+
+// MODELS AND VIEWS 
+class CPF {
+  static validate(ni) {
+    if (typeof ni !== "string") return false;
+    if (!/^\d{11}$/.test(ni)) return false;
+
+    // Reject CPFs with all digits the same (e.g. "11111111111")
+    if (/^(\d)\1{10}$/.test(ni)) return false;
+
+    const digits = ni.split("").map(d => parseInt(d, 10));
+
+    // Validate first check digit
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += digits[i] * (10 - i);
+    }
+    let firstCheck = 11 - (sum % 11);
+    if (firstCheck >= 10) firstCheck = 0;
+    if (digits[9] !== firstCheck) return false;
+
+    // Validate second check digit
+    sum = 0;
+    for (let i = 0; i < 10; i++) {
+      sum += digits[i] * (11 - i);
+    }
+    let secondCheck = 11 - (sum % 11);
+    if (secondCheck >= 10) secondCheck = 0;
+    if (digits[10] !== secondCheck) return false;
+
+    return true;
+  }
+}
+
+class CNPJ {
+  static validate(ni) {
+    if (typeof ni !== "string") return false;
+    if (!/^\d{14}$/.test(ni)) return false;
+
+    // Reject CNPJs with all digits the same
+    if (/^(\d)\1{13}$/.test(ni)) return false;
+
+    const digits = ni.split("").map(d => parseInt(d, 10));
+
+    // Weights for first check digit (positions 1-12)
+    const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    // Weights for second check digit (positions 1-13)
+    const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+    // Calculate first check digit
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      sum += digits[i] * weight1[i];
+    }
+    let firstCheck = sum % 11;
+    firstCheck = firstCheck < 2 ? 0 : 11 - firstCheck;
+    if (digits[12] !== firstCheck) return false;
+
+    // Calculate second check digit
+    sum = 0;
+    for (let i = 0; i < 13; i++) {
+      sum += digits[i] * weight2[i];
+    }
+    let secondCheck = sum % 11;
+    secondCheck = secondCheck < 2 ? 0 : 11 - secondCheck;
+    if (digits[13] !== secondCheck) return false;
+
+    return true;
+  }
+}
+
+class DoiProp {
+  constructor(schemaName,propName) {
+    const definitions = doiDefs[schemaName];
+    if (!definitions) throw new Error("schemaName does not exist");
+    if (typeof propName !== "string")
+      throw new Error("propName is required and must be a string.")
+    this.schema = definitions[propName];
+    if (!this.schema)
+      throw new Error(`Property ${propName} does not exist.`)
+    this.name = propName;
+    this.label = this.schema.description; 
+    this.value = null;
+    this.view = this.render();
+  }
+
+  forceValue(propValue) { 
+    this.value = propValue;
+  }
+  setValue(propValue) {
+    this.value = this.validate(propValue);
+  }
+
+  get value() {
+    if (this.view.value != null)
+      this._value = this.view.value;
+    return this._value;
+  }
+
+  set value(newValue) {
+    this._value = newValue;
+  }
+
+  validate(propValue) { // nullify invalid data
+    if (typeof propValue !== this.schema.type) {
+      return null;
+    }
+    if (this.schema.oneOf) {
+      for (const option of this.schema.oneOf) {
+        if (propValue === option.const) {
+          return propValue;
+        }
+      }
+      return null;
+    }
+    else {
+      if (this.schema.maxLength
+        && propValue.length > this.schema.maxLength) {
+        return null;
+      }
+      if (this.schema.minLength
+        && propValue.length < this.schema.minLength) {
+        return null;
+      }
+      if (this.schema.format
+        && !isFormatted(propValue,this.schema.format)) {
+        return null;
+      }
+      return propValue;
+    }
+
+    function isFormatted(value,format) {
+      if (format === "date") {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(value)) return false;
+
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return false;
+        return true;
+      }
+      else if (format === "int32") {
+        return (Number.isInteger(value)
+          && 0< value && value < 100000000);
+      }
+      else throw new Error("Impossible flow.");
+    }
+  }
+
+  render() {
+    const label = new LabelElement(this.label);
+    let field;
+    if (this.schema.oneOf) {
+      field = new MenuInput();
+      for (const option of this.schema.oneOf) {
+        field.add(option.const, option.title);
+      }
+      field.html.addEventListener("change",
+        () => this.setValue(field.value));
+    }
+    else {
+      if (this.schema.format === "date") 
+        field = new DateInput();
+      else if (this.schema.type === "boolean")
+        field = new CheckboxInput();
+      else if (this.schema.type === "number")
+        field = new NumberInput();
+      else if (this.schema.type === "string")
+        field = new TextInput();
+      else throw new Error("Invalid input type.");
+      field.html.addEventListener("input",
+        () => this.setValue(field.value));
+    }
+    const container = new InputBlock(label,field);
+    return container;
+  }
+}
+
+class DoiEntity {
+  constructor(schemaName,requiredList) {
+    if (!(schemaName in doiDefs))
+      throw new Error("schemaName not found");
+    if (!requiredList || !requiredList.length)
+      throw new Error("requiredList required");
+    this.schemaName = schemaName;
+    this.requiredList = requiredList;
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      this.forceProp(propName,null);
+    }
+  }
+
+  render() { // assign to this.view (in subclasses only)
+    const container = new Block();
+    container.add(new H3Element(this.schemaName))
+    for (const propName of Object.keys(this)) {
+      if (this[propName] instanceof DoiProp) {
+        container.add(this[propName].view);
+      }
+    }
+    return container;
+  }
+
+  forceProp(propName, propValue) {
+    this[propName] = new DoiProp(
+      this.schemaName, propName);
+    this[propName].forceValue(propValue);
+  }
+
+  setProp(propName, propValue) {
+    this[propName] = new DoiProp(
+      this.schemaName, propName);
+    this[propName].setValue(propValue);
+  }
+
+  isComplete() {
+    const requiredProps = new Set(this.requiredList);
+    for (const propName in this) {
+      const prop = this[propName];
+      // ignore properties outside of schema
+      if (!(prop instanceof DoiProp)) continue;
+      if (!prop.validate(prop.value)) return false;
+      if (requiredProps.has(prop.name)) {
+        requiredProps.delete(prop.name);
+      }
+    }
+    return requiredProps.size === 0;
+  }
+
+  isConsistent() { return true; }
+
+  isValid() {
+    return this.isComplete() && this.isConsistent();
+  }
+}
+
+class RepList { 
+  constructor() {
+    this.inputs = [];
+    this.view = new EditableList("Representantes");
+    this.view.addBtn.setAction(() => {
+      const label = new LabelElement("CPF ou CNPJ: ");
+      const field = new TextInput("");
+      this.inputs.push(field);
+      const repLine = new Row();
+      repLine.add(label)
+      repLine.add(field)
+      const newRep = new ListEntry(repLine)
+      this.view.add(newRep);
+      newRep.delBtn.setAction (() => {
+        this.inputs.splice(this.view.indexOf(newRep),1);
+        this.view.removeItem(newRep);
+      });
+    });
+  }
+  get list() {
+    const representantes = [];
+    for (const rep of this.inputs) {
+      const ni = rep.value;
+      if (Subject.validate(ni))
+        representantes.push({"ni": ni});
+    }
+    return representantes;
+  }
+}
+
+class Subject extends DoiEntity {
+  static entity = "Subject";
+  static validate = (ni) => {
+    return (CPF.validate(ni) || CNPJ.validate(ni));
+  }
+  #representantes;
+  constructor (position) {
+    super(position,[
+      "indicadorConjuge",
+      "indicadorEspolio",
+      "indicadorEstrangeiro",
+      "indicadorNaoConstaParticipacaoOperacao",
+      "indicadorNiIdentificado",
+      "indicadorRepresentante"
+    ]);
+    this.#representantes = new RepList();
+    this.view = this.render();
+  }
+
+  get representantes() {
+    return this.#representantes.list;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.#representantes.view);
+    return container;
+  }
+
+  isConsistent() {
+    return (this.indicadorNiIdentificado.value === true
+      &&
+      !this.representantes.some(rep => rep.ni === this.ni.value)
+      &&
+      (!this.indicadorEspolio.value
+        || this.cpfInventariante.value)
+      &&
+      (!this.indicadorConjuge.value 
+        || (this.indicadorCpfConjugeIdentificado.value
+          && this.regimeBens.value))
+    );
+  }
+}
+
+class Alienante extends Subject {
+  static entity = "Alienante";
+  constructor() { super("Alienante"); }
+}
+
+class Adquirente extends Subject {
+  static entity = "Adquirente";
+  constructor() { super("Adquirente"); }
+}
+
+class SubjectList {
+  constructor(title) {
+    if (title === "Alienantes")
+      this.position = "Alienante";
+    else if (title === "Adquirentes")
+      this.position = "Adquirente";
+    else
+      throw new Error("Invalid position.");
+    this.pager = new Pager(title);
+    this.items = new Map();
+    this.pager.addBtn.setAction(() => {
+      const newSubj = new Subject(this.position);
+      this.items.set(newSubj.view,newSubj);
+      this.pager.addPage(newSubj.view);
+      const newEntry = this.pager.nav.items[this.pager.nav.last];
+      newEntry.delBtn.addAction(() => {
+        this.items.delete(newSubj.view);
+      });
+    });
+  }
+  get view() { return this.pager; }
+  get list() {
+    const validSubjects = [];
+    for (const subjectView of this.pager.pane.items) {
+      // TODO: validation
+        validSubjects.push(this.items.get(subjectView));
+    }
+    return validSubjects;
+  }
+  getSubjectByNi(ni) {
+    for (const subject of this.items.values())
+      if (subject.ni.value === ni) return subject;
+  }
+}
+
+class Operacao {
+  constructor(title) {
+    this.inputs = new Map();
+    const validTitle = title==null ? "Operação" : title;
+    //this.subjectList = [];
+    this.view = new EditableList(validTitle);
+    this.view.addBtn.setAction(() => {
+      const label1 = new LabelElement("Participante: ");
+      const subject = new TextInput(); // TODO: create menu
+      // Menu items must be managed by parent
+      const label2 = new LabelElement("%: ");
+      const participation = new NumberInput(0);
+      this.inputs.set(subject, participation);
+      const line = new Row();
+      line.add(label1); line.add(subject);
+      line.add(label2); line.add(participation);
+      const newOp = new ListEntry(line);
+      this.view.add(newOp);
+      newOp.delBtn.setAction (() => {
+        this.inputs.delete(subject);
+        this.view.removeItem(newOp);
+      });
+    });
+  }
+  get total() {
+    let sum=0;
+    for (const [subject, participation] of this.inputs.entries()) {
+      sum+=Number(participation.value);
+    }
+    return sum;
+  }
+  get list() {
+    const operacao = {};
+    for (const subject of this.inputs.keys()) {
+      const choice = subject.value;
+      const fraction = Number(this.inputs.get(subject).value);
+      if (this.validate(choice,fraction))
+        operacao[choice] = fraction;
+    }
+    return operacao;
+  }
+  validate(ni,fraction) {
+    if (Subject.validate(ni)
+        && typeof fraction === "number"
+        && fraction>0 && fraction<=100)
+      return true;
+    else return false;
+  }
+  isValid() {
+    return (this.total>=98 && this.total <=100);
+  }
+}
+
+class MunicipioList {
+  //TODO (last)
+}
+
+class Imovel extends DoiEntity {
+  #alienacao;
+  #aquisicao;
+  #outrosMunicipios;
+  static entity = "Imovel";
+  constructor(alienantes, adquirentes) {
+    super("Imovel",[
+      "destinacao",
+      "formaPagamento",
+      "indicadorImovelPublicoUniao",
+      "indicadorPagamentoDinheiro",
+      "indicadorPermutaBens",
+      "tipoOperacaoImobiliaria",
+      "tipoParteTransacionada",
+      "tipoServico",
+      "valorParteTransacionada"
+    ]);
+    this.alienantes = alienantes;
+    this.adquirentes = adquirentes;
+    this.#alienacao = new Operacao("Alienação");
+    // implement menu of alienantes here!
+    this.#aquisicao = new Operacao("Aquisição");
+    // implement menu of adquirentes here!
+    this.#outrosMunicipios = new MunicipioList();
+    this.view = this.render();
+  }
+
+  
+  get subjects() { return [
+      ...this.adquirentes.list,
+      ...this.alienantes.list
+  ];}
+  
+
+  get alienacao() { return this.#alienacao; }
+  get aquisicao() { return this.#aquisicao; }
+  get outrosMunicipios() {
+    // TODO
+  }
+
+  participantes(operacao) {
+    const parts = [];
+    const op = operacao.list;
+    for (const ni of Object.keys(op)) {
+      const subj = this.subjects.find(s => s.ni.value === ni);
+      if (subj != null) {
+        const part = { "ni": ni, participacao: op[ni] }
+        for (const prop of Object.keys(subj))
+        if (subj[prop] instanceof DoiProp) {
+          if (subj[prop].value != 0
+            || subj.requiredList.includes(prop)) {
+            part[prop] = subj[prop].value;
+          }
+        }
+        parts.push(part);
+      }
+    }
+    return parts;
+  }
+
+  get doi() {
+    const doi = {};
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      if (this[propName].value!= 0
+        || this.requiredList.includes(propName))
+        doi[propName] = this[propName].value;
+    }
+    doi.alienantes = this.participantes(this.alienacao);
+    doi.adquirentes = this.participantes(this.aquisicao);
+    return doi;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.#alienacao.view);
+    container.add(this.#aquisicao.view);
+    /* TODO: manage subject menu in each operacao
+    this.#aquisicao.view.addButton.addAction( () => {
+    });
+    this.#alienacao.view.addButton.addAction( () => {
+
+    });
+    */
+    //TODO: add outrosMunicipios
+    return container;
+  }
+
+/*
+  addMunicipio(codigoIbge) {
+    if (typeof codigoIbge === "string"
+      && /^\d{7}$/.test(codigoIbge))
+      this.#outrosMunicipios.add(codigoIbge);
+  }
+
+  removeMunicipio(codigoIbge) {
+    if (typeof codigoIbge === "string"
+      && /^\d{7}$/.test(codigoIbge))
+      this.#outrosMunicipios.delete(codigoIbge);
+  }
+*/
+  isConsistent() {
+    return (this.#alienacao.isValid()
+      && this.#aquisicao.isValid());
+  }
+}
+
+class ImovelList {
+  constructor(act) {
+    this.pager = new Pager("Imóveis");
+    this.items = new Map();
+    this.alienantes = act.alienantes;
+    this.adquirentes = act.adquirentes;
+    this.pager.addBtn.setAction(() => {
+      const newImovel =
+        new Imovel(this.alienantes, this.adquirentes);
+      this.items.set(newImovel.view,newImovel);
+      this.pager.addPage(newImovel.view);
+      const newEntry = this.pager.nav.items[this.pager.nav.last];
+      newEntry.delBtn.addAction(() => {
+        this.items.delete(newImovel.view);
+      });
+    });
+  }
+  get view() { return this.pager; }
+  get list() {
+    const validImoveis = [];
+    for (const imovelView of this.pager.pages.values()) {
+        validImoveis.push(this.items.get(imovelView));
+    }
+    return validImoveis;
+  }
+}
+
+class Ato extends DoiEntity {
+  static entity = "Ato";
+  constructor() {
+    super("Ato",[
+      "dataLavraturaRegistroAverbacao",
+      "dataNegocioJuridico",
+      "tipoDeclaracao",
+      "tipoServico",
+    ]);
+    this.alienantes = new SubjectList("Alienantes");
+    this.adquirentes = new SubjectList("Adquirentes");
+    this.imoveis = new ImovelList(this);
+    this.view = this.render();
+  }
+
+  get alienantesList() { return this.alienantes.list; }
+  get adquirentesList() { return this.adquirentes.list; }
+  get imoveisList() { return this.imoveis.list; };
+  get declaracoes() {
+    const declaracoes = [];
+    const doiList = this.imoveisList;
+    const atoDoi = {};
+    for (const propName of Object.keys(doiDefs[this.schemaName])) {
+      if (this[propName].value != 0
+          || this.requiredList.includes(propName)) {
+          atoDoi[propName] = this[propName].value;
+      }
+    }
+    for (const imovel of doiList) {
+      declaracoes.push({...atoDoi, ...imovel.doi});
+    }
+    return declaracoes;
+  }
+
+  render() {
+    const container = super.render();
+    container.add(this.alienantes.view);
+    container.add(this.adquirentes.view);
+    container.add(this.imoveis.view);
+    return container;
+  }
+
+  json() {
+    return JSON.stringify({ "declaracoes": this.declaracoes });
+  }
+
+  // TODO
+  isConsistent() { return true; }
+}
+
+// GLOBAL AND ENVIRONMENT VARIABLES
+
+const doiDefs=JSON.parse(doiJson);
+
+// CONTROLLER
+
+class DoiMaker {
+  constructor() {
+    this.pager = new Pager("Atos");
+    this.nav = this.pager.nav;
+    this.entries = this.pager.nav.items;
+    this.items = new Map();
+    this.pager.addBtn.setAction(() => {
+      const newAct = new Ato();
+      this.items.set(newAct.view,newAct);
+      this.pager.addPage(newAct.view);
+      const newEntry = this.entries[this.nav.last];
+      newEntry.delBtn.addAction(() => {
+        this.items.delete(newAct.view); 
+      });
+    });
+    this.saveButton = new ControlButton("Salvar");
+    this.downloadButton = new ControlButton("Download");
+    this.resumeButton = new ControlButton("Carregar");
+    this.uploadButton = new ControlButton("Upload");
+    this.saveButton.setAction(() => this.save());
+    this.downloadButton.setAction(() => this.download());
+//    this.resumeButton.setAction(() => this.resume());
+//    this.uploadButton.setAction(() => this.upload());
+    this.btnLine = new Row();
+    this.btnLine.add(this.saveButton);
+    this.btnLine.add(this.resumeButton);
+    this.btnLine.add(this.downloadButton);
+    this.btnLine.add(this.uploadButton);
+    this.container = new TitledBlock("DOImaker");
+    this.container.add(this.pager);
+    this.container.add(this.btnLine);
+  }
+  get view() { return this.container; }
+  get object() {
+    const doiJson = [];
+    for (const act of this.items.values()) {
+      // TODO: maybe validate before this
+      act.declaracoes.forEach((dec) => doiJson.push(dec));
+    }
+    return { "declaracoes": doiJson };
+  }
+
+  get json() { return JSON.stringify(this.object); }
+  save() { saveObject(this.object,"draftDoi"); }
+  download() { downloadObject(this.object,"doi.json"); }
+  // TODO: resume and upload
+  // resume() { loadObject("draftDoi"); }
+//  upload() { this.load(readJson("doi.json").declaracoes); }
+
+  init() {
+    document.getElementById("app").appendChild(this.view.html);
+  }
+}
+
+// ENTRYPOINT
+
+const doimaker = new DoiMaker();
+doimaker.init();
+
+  </script>
+</html>
