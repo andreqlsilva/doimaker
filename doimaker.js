@@ -1420,7 +1420,7 @@ class RepList {
     const representantes = [];
     for (const rep of this.inputs) {
       const ni = rep.value;
-      if (true || Subject.validate(ni))
+      if (Subject.validate(ni))
         representantes.push({"ni": ni});
     }
     return representantes;
