@@ -1449,7 +1449,6 @@ class Subject extends DoiEntity {
   static validate = (ni) => {
     return (CPF.validate(ni) || CNPJ.validate(ni));
   }
-  reps;
   constructor (position) {
     super(position,[
       "indicadorConjuge",
@@ -1867,7 +1866,6 @@ class DoiMaker {
       if (!acts[actId]) {
         const newAct = new Ato();
         for (const prop of Object.keys(newAct)) {
-          console.log(prop);
           if (newAct[prop] instanceof DoiProp)
             newAct[prop].setValue(doi[prop]);
         }
