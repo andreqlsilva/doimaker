@@ -461,12 +461,20 @@ const doiJson = `{
           "title": "Permuta"
         },
         {
+          "const": "55",
+          "title": "Doação em adiantamento da legítima"
+        },
+        {
+          "const": "67",
+          "title": "Doação, exceto em Adiantamento de Legítima"
+        },
+        {
           "const": "15",
           "title": "Adjudicação"
         },
         {
           "const": "19",
-          "title": "Doação em Pagamento"
+          "title": "Dação em Pagamento"
         },
         {
           "const": "21",
@@ -503,10 +511,6 @@ const doiJson = `{
         {
           "const": "47",
           "title": "Integralização/Subscrição de capital"
-        },
-        {
-          "const": "55",
-          "title": "Doação em adiantamento da legítima"
         },
         {
           "const": "56",
@@ -551,10 +555,6 @@ const doiJson = `{
         {
           "const": "66",
           "title": "Direito de superfície"
-        },
-        {
-          "const": "67",
-          "title": "Doação, exceto em Adiantamento de Legítima"
         },
         {
           "const": "68",
@@ -1503,10 +1503,10 @@ class SubjectList {
   }
   get view() { return this.pager; }
   get list() {
-    const validSubjects = [];
+    const validSubjects = []; // TODO: validation? (here?)
     for (const subjectView of this.pager.pane.items) {
-      // TODO: validation
-        validSubjects.push(this.items.get(subjectView));
+      const subj = this.items.get(subjectView);
+      validSubjects.push(subj);
     }
     return validSubjects;
   }
@@ -1620,15 +1620,20 @@ class Imovel extends DoiEntity {
       const subj = this.subjects.find(s => s.ni.value === ni);
       if (subj != null) {
         const part = { "ni": ni, participacao: op[ni] }
-        for (const prop of Object.keys(subj))
-        if (subj[prop] instanceof DoiProp) {
-          if (subj[prop].value != 0
-            || subj.requiredList.includes(prop)) {
-            part[prop] = subj[prop].value;
+        for (const prop of Object.keys(subj)) {
+          if (subj[prop] instanceof DoiProp) {
+            if (subj[prop].value != 0
+              || subj.requiredList.includes(prop))
+              part[prop] = subj[prop].value;
           }
-        }
-        if (part.indicadorRepresentante) {
-          part.representantes = subj.representantes;
+          if (part.indicadorConjuge) {
+            if (!part.indicadorCpfConjugeIdentificado)
+              part.indicadorCpfConjugeIdentificado = false;
+            part.indicadorConjugeParticipa = false;
+          }
+          if (part.indicadorRepresentante) {
+            part.representantes = subj.representantes;
+          }
         }
         parts.push(part);
       }
