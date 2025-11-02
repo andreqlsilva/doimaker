@@ -904,7 +904,7 @@ class MenuInput extends UIComponent {
     super();
     this.options = {};
     const voidOption = document.createElement("option");
-    voidOption.value = "-1";
+    voidOption.value = "";
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
   }
@@ -1263,8 +1263,10 @@ class DoiProp {
   }
 
   set value(newValue) {
-    this._value = newValue;
-    this.view.value = newValue;
+    if (this.validate(newValue)) {
+      this._value = newValue;
+      this.view.value = newValue;
+    }
   }
 
   validate(propValue) { // nullify invalid data
@@ -1272,6 +1274,7 @@ class DoiProp {
       return null;
     }
     if (this.schema.oneOf) {
+      if (propValue < 0) return null;
       for (const option of this.schema.oneOf) {
         if (propValue === option.const) {
           return propValue;
@@ -1683,6 +1686,8 @@ class Imovel extends DoiEntity {
         || this.requiredList.includes(propName))
         doi[propName] = this[propName].value;
     }
+    if (this.formaPagamento.value === "7")
+      doi.indicadorAlienacaoFiduciaria = false;
     doi.alienantes = this.participantes(this.alienacao);
     doi.adquirentes = this.participantes(this.aquisicao);
     return doi;
@@ -1694,9 +1699,9 @@ class Imovel extends DoiEntity {
     container.add(this.aquisicao.view);
     // TODO: manage subject menu in each operacao
     /* 
-    this.#aquisicao.view.addButton.addAction( () => {
+    this.aquisicao.view.addButton.addAction( () => {
     });
-    this.#alienacao.view.addButton.addAction( () => {
+    this.alienacao.view.addButton.addAction( () => {
 
     });
     */
