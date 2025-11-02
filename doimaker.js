@@ -813,9 +813,7 @@ class InputElement extends UIComponent {
   static tag = "input";
   static type = "text";
   static className = "InputElement";
-  static isValid = (newInput) => {
-    return (newInput != null);
-  }
+  static isValid = (newInput) => (newInput != null);
   #defaultValue;
   constructor(defaultValue) {
     super();
@@ -825,9 +823,7 @@ class InputElement extends UIComponent {
   }
   get value() { return this.html.value; }
   set value(newValue) {
-    if (this.constructor.isValid(newValue))
-      this.html.value = newValue;
-    else throw new Error("Invalid value.");
+    if (this.isValid(newValue)) this.html.value = newValue;
   }
   get defaultValue() { return this.#defaultValue; }
   set defaultValue(newDefault) {
@@ -892,12 +888,12 @@ class CheckboxInput extends UIComponent {
     this.html.setAttribute("type", "checkbox");
     this.value = false;
   }
+  get value() {
+    return this.html.checked;
+  }
   set value(newValue) {
     if (typeof newValue === "boolean")
       this.html.checked = newValue;
-  }
-  get value() {
-    return this.html.checked;
   }
 }
 
@@ -908,11 +904,14 @@ class MenuInput extends UIComponent {
     super();
     this.options = {};
     const voidOption = document.createElement("option");
-    voidOption.value = "0";
+    voidOption.value = "-1";
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
   }
   get value() { return this.html.value; }
+  set value(newCode) {
+    if (this.options[newCode]) this.html.value = newCode;
+  }
   add(code, title) {
     if (code != null && title != null) {
       const option = document.createElement("option");
@@ -1003,6 +1002,7 @@ class InputBlock extends Block {
     super.add(field);
   }
   get value() { return this.field.value; }
+  set value(newValue) { this.field.value = newValue; }
 }
 
 class Row extends Block {
@@ -1245,7 +1245,7 @@ class DoiProp {
       throw new Error(`Property ${propName} does not exist.`)
     this.name = propName;
     this.label = this.schema.description; 
-    this.value = null;
+    this._value = null;
     this.view = this.render();
   }
 
@@ -1264,6 +1264,7 @@ class DoiProp {
 
   set value(newValue) {
     this._value = newValue;
+    this.view.value = newValue;
   }
 
   validate(propValue) { // nullify invalid data
@@ -1866,8 +1867,9 @@ class DoiMaker {
       if (!acts[actId]) {
         const newAct = new Ato();
         for (const prop of Object.keys(newAct)) {
+          console.log(prop);
           if (newAct[prop] instanceof DoiProp)
-            newAct[prop].forceValue(doi[prop]);
+            newAct[prop].setValue(doi[prop]);
         }
         doi.alienantes.forEach( (alienante) => {
           const ni = alienante.ni;
@@ -1875,7 +1877,7 @@ class DoiMaker {
             const newAlienante = new Alienante();
             for (const prop of Object.keys(newAlienante)) {
               if (newAlienante[prop] instanceof DoiProp)
-                newAlienante[prop].forceValue(alienante[prop]);
+                newAlienante[prop].setValue(alienante[prop]);
             }
             if (alienante.representantes) {
               for (const rep of alienante.representantes)
@@ -1891,7 +1893,7 @@ class DoiMaker {
             const newAdquirente = new Adquirente();
             for (const prop of Object.keys(newAdquirente)) {
               if (newAdquirente[prop] instanceof DoiProp)
-                newAdquirente[prop].forceValue(adquirente[prop]);
+                newAdquirente[prop].setValue(adquirente[prop]);
             }
             if (adquirente.representantes) {
               for (const rep of adquirente.representantes)
@@ -1907,7 +1909,7 @@ class DoiMaker {
         acts[actId].adquirentes);
       for (const prop of Object.keys(newImovel)) {
         if (newImovel[prop] instanceof DoiProp) {
-          newImovel[prop].forceValue(doi[prop]);
+          newImovel[prop].setValue(doi[prop]);
         }
       }
       doi.alienantes.forEach( (alienante) => {
