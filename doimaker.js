@@ -738,7 +738,6 @@ async function readJson(fileobj) {
   }
 }
 
-
 // FRONTEND LIBRARY 
 
 class UIComponent { // extend only
@@ -760,7 +759,7 @@ class UIComponent { // extend only
   setId(id) { if (id) this.html.setAttribute("id",id); }
 }
 
-class DisplayElement extends UIComponent { // also extend only
+class DisplayElement extends UIComponent { // extend only
   static tag = "p";
   static className = "DisplayElement";
   constructor(title) {
@@ -793,7 +792,7 @@ class LabelElement extends TextualElement {
   static className = "LabelElement";
 }
 
-class HElement extends TextualElement { // extend-only
+class HElement extends TextualElement { // extend only
   static className = "HeaderElement";
 }
 
@@ -813,9 +812,7 @@ class InputElement extends UIComponent {
   static tag = "input";
   static type = "text";
   static className = "InputElement";
-  static isValid = (newInput) => {
-    return (newInput != null);
-  }
+  static isValid = (newInput) => (newInput != null);
   #defaultValue;
   constructor(defaultValue) {
     super();
@@ -825,9 +822,7 @@ class InputElement extends UIComponent {
   }
   get value() { return this.html.value; }
   set value(newValue) {
-    if (this.constructor.isValid(newValue))
-      this.html.value = newValue;
-    else throw new Error("Invalid value.");
+    if (this.isValid(newValue)) this.html.value = newValue;
   }
   get defaultValue() { return this.#defaultValue; }
   set defaultValue(newDefault) {
@@ -892,12 +887,12 @@ class CheckboxInput extends UIComponent {
     this.html.setAttribute("type", "checkbox");
     this.value = false;
   }
+  get value() {
+    return this.html.checked;
+  }
   set value(newValue) {
     if (typeof newValue === "boolean")
       this.html.checked = newValue;
-  }
-  get value() {
-    return this.html.checked;
   }
 }
 
@@ -908,11 +903,14 @@ class MenuInput extends UIComponent {
     super();
     this.options = {};
     const voidOption = document.createElement("option");
-    voidOption.value = "0";
+    voidOption.value = "";
     voidOption.textContent = "";
     this.html.appendChild(voidOption);
   }
   get value() { return this.html.value; }
+  set value(newCode) {
+    if (this.options[newCode]) this.html.value = newCode;
+  }
   add(code, title) {
     if (code != null && title != null) {
       const option = document.createElement("option");
@@ -940,6 +938,19 @@ class FilePicker extends UIComponent {
   }
   get file() {
     return this.html.files[0];
+  }
+  trigger() { this.html.click(); }
+}
+
+class JsonFilePicker extends FilePicker {
+  static className = "JsonFilePicker";
+  constructor() {
+    super();
+    this.html.accept = ".json";
+  }
+  setAction(actionFunction) {
+    if (actionFunction instanceof Function) 
+      this.html.addEventListener("change", actionFunction);
   }
 }
 
@@ -1003,6 +1014,7 @@ class InputBlock extends Block {
     super.add(field);
   }
   get value() { return this.field.value; }
+  set value(newValue) { this.field.value = newValue; }
 }
 
 class Row extends Block {
@@ -1245,7 +1257,7 @@ class DoiProp {
       throw new Error(`Property ${propName} does not exist.`)
     this.name = propName;
     this.label = this.schema.description; 
-    this.value = null;
+    this._value = null;
     this.view = this.render();
   }
 
@@ -1263,7 +1275,10 @@ class DoiProp {
   }
 
   set value(newValue) {
-    this._value = newValue;
+    if (this.validate(newValue)) {
+      this._value = newValue;
+      this.view.value = newValue;
+    }
   }
 
   validate(propValue) { // nullify invalid data
@@ -1271,6 +1286,7 @@ class DoiProp {
       return null;
     }
     if (this.schema.oneOf) {
+      if (propValue < 0) return null;
       for (const option of this.schema.oneOf) {
         if (propValue === option.const) {
           return propValue;
@@ -1401,20 +1417,7 @@ class RepList {
   constructor() {
     this.inputs = [];
     this.view = new EditableList("Representantes");
-    this.view.addBtn.setAction(() => {
-      const label = new LabelElement("CPF ou CNPJ: ");
-      const field = new TextInput("");
-      this.inputs.push(field);
-      const repLine = new Row();
-      repLine.add(label)
-      repLine.add(field)
-      const newRep = new ListEntry(repLine)
-      this.view.add(newRep);
-      newRep.delBtn.setAction (() => {
-        this.inputs.splice(this.view.indexOf(newRep),1);
-        this.view.removeItem(newRep);
-      });
-    });
+    this.view.addBtn.setAction(() => this.add(''));
   }
   get list() {
     const representantes = [];
@@ -1425,6 +1428,20 @@ class RepList {
     }
     return representantes;
   }
+  add(ni) {
+    const label = new LabelElement("CPF ou CNPJ: ");
+    const field = new TextInput(ni);
+    this.inputs.push(field);
+    const repLine = new Row();
+    repLine.add(label)
+    repLine.add(field)
+    const newRep = new ListEntry(repLine)
+    this.view.add(newRep);
+    newRep.delBtn.setAction (() => {
+      this.inputs.splice(this.view.indexOf(newRep),1);
+      this.view.removeItem(newRep);
+    });
+  }
 }
 
 class Subject extends DoiEntity {
@@ -1432,7 +1449,6 @@ class Subject extends DoiEntity {
   static validate = (ni) => {
     return (CPF.validate(ni) || CNPJ.validate(ni));
   }
-  #representantes;
   constructor (position) {
     super(position,[
       "indicadorConjuge",
@@ -1442,17 +1458,17 @@ class Subject extends DoiEntity {
       "indicadorNiIdentificado",
       "indicadorRepresentante"
     ]);
-    this.#representantes = new RepList();
+    this.reps = new RepList();
     this.view = this.render();
   }
 
   get representantes() {
-    return this.#representantes.list;
+    return this.reps.list;
   }
 
   render() {
     const container = super.render();
-    container.add(this.#representantes.view);
+    container.add(this.reps.view);
     return container;
   }
 
@@ -1491,15 +1507,8 @@ class SubjectList {
       throw new Error("Invalid position.");
     this.pager = new Pager(title);
     this.items = new Map();
-    this.pager.addBtn.setAction(() => {
-      const newSubj = new Subject(this.position);
-      this.items.set(newSubj.view,newSubj);
-      this.pager.addPage(newSubj.view);
-      const newEntry = this.pager.nav.items[this.pager.nav.last];
-      newEntry.delBtn.addAction(() => {
-        this.items.delete(newSubj.view);
-      });
-    });
+    this.pager.addBtn.setAction(() =>
+      this.add(new Subject(this.position)));
   }
   get view() { return this.pager; }
   get list() {
@@ -1509,6 +1518,14 @@ class SubjectList {
       validSubjects.push(subj);
     }
     return validSubjects;
+  }
+  add(newSubj) {
+    this.items.set(newSubj.view,newSubj);
+    this.pager.addPage(newSubj.view);
+    const newEntry = this.pager.nav.items[this.pager.nav.last];
+    newEntry.delBtn.addAction(() => {
+      this.items.delete(newSubj.view);
+    });
   }
   getSubjectByNi(ni) {
     for (const subject of this.items.values())
@@ -1520,25 +1537,8 @@ class Operacao {
   constructor(title) {
     this.inputs = new Map();
     const validTitle = title==null ? "Operação" : title;
-    //this.subjectList = [];
     this.view = new EditableList(validTitle);
-    this.view.addBtn.setAction(() => {
-      const label1 = new LabelElement("Participante: ");
-      const subject = new TextInput(); // TODO: create menu
-      // Menu items must be managed by parent
-      const label2 = new LabelElement("%: ");
-      const participation = new NumberInput(0);
-      this.inputs.set(subject, participation);
-      const line = new Row();
-      line.add(label1); line.add(subject);
-      line.add(label2); line.add(participation);
-      const newOp = new ListEntry(line);
-      this.view.add(newOp);
-      newOp.delBtn.setAction (() => {
-        this.inputs.delete(subject);
-        this.view.removeItem(newOp);
-      });
-    });
+    this.view.addBtn.setAction (() => this.add('',''));
   }
   get total() {
     let sum=0;
@@ -1557,6 +1557,23 @@ class Operacao {
     }
     return operacao;
   }
+  add(ni,participacao) {
+    const label1 = new LabelElement("Participante: ");
+    const subject = new TextInput(ni); // TODO: create menu
+    // Menu items must be managed by parent
+    const label2 = new LabelElement("%: ");
+    const participation = new NumberInput(participacao);
+    this.inputs.set(subject, participation);
+    const line = new Row();
+    line.add(label1); line.add(subject);
+    line.add(label2); line.add(participation);
+    const newOp = new ListEntry(line);
+    this.view.add(newOp);
+    newOp.delBtn.setAction (() => {
+      this.inputs.delete(subject);
+      this.view.removeItem(newOp);
+    });
+  }
   validate(ni,fraction) {
     if (Subject.validate(ni)
         && typeof fraction === "number"
@@ -1574,9 +1591,6 @@ class MunicipioList {
 }
 
 class Imovel extends DoiEntity {
-  #alienacao;
-  #aquisicao;
-  #outrosMunicipios;
   static entity = "Imovel";
   constructor(alienantes, adquirentes) {
     super("Imovel",[
@@ -1592,11 +1606,11 @@ class Imovel extends DoiEntity {
     ]);
     this.alienantes = alienantes;
     this.adquirentes = adquirentes;
-    this.#alienacao = new Operacao("Alienação");
+    this.alienacao = new Operacao("Alienação");
     // implement menu of alienantes here!
-    this.#aquisicao = new Operacao("Aquisição");
+    this.aquisicao = new Operacao("Aquisição");
     // implement menu of adquirentes here!
-    this.#outrosMunicipios = new MunicipioList();
+    this.outrosMunicipios = new MunicipioList();
     this.view = this.render();
   }
 
@@ -1606,13 +1620,6 @@ class Imovel extends DoiEntity {
       ...this.alienantes.list
   ];}
   
-
-  get alienacao() { return this.#alienacao; }
-  get aquisicao() { return this.#aquisicao; }
-  get outrosMunicipios() {
-    // TODO
-  }
-
   participantes(operacao) {
     const parts = [];
     const op = operacao.list;
@@ -1648,6 +1655,8 @@ class Imovel extends DoiEntity {
         || this.requiredList.includes(propName))
         doi[propName] = this[propName].value;
     }
+    if (this.formaPagamento.value === "7")
+      doi.indicadorAlienacaoFiduciaria = false;
     doi.alienantes = this.participantes(this.alienacao);
     doi.adquirentes = this.participantes(this.aquisicao);
     return doi;
@@ -1655,12 +1664,13 @@ class Imovel extends DoiEntity {
 
   render() {
     const container = super.render();
-    container.add(this.#alienacao.view);
-    container.add(this.#aquisicao.view);
-    /* TODO: manage subject menu in each operacao
-    this.#aquisicao.view.addButton.addAction( () => {
+    container.add(this.alienacao.view);
+    container.add(this.aquisicao.view);
+    // TODO: manage subject menu in each operacao
+    /* 
+    this.aquisicao.view.addButton.addAction( () => {
     });
-    this.#alienacao.view.addButton.addAction( () => {
+    this.alienacao.view.addButton.addAction( () => {
 
     });
     */
@@ -1682,8 +1692,8 @@ class Imovel extends DoiEntity {
   }
 */
   isConsistent() {
-    return (this.#alienacao.isValid()
-      && this.#aquisicao.isValid());
+    return (this.alienacao.isValid()
+      && this.aquisicao.isValid());
   }
 }
 
@@ -1693,16 +1703,8 @@ class ImovelList {
     this.items = new Map();
     this.alienantes = act.alienantes;
     this.adquirentes = act.adquirentes;
-    this.pager.addBtn.setAction(() => {
-      const newImovel =
-        new Imovel(this.alienantes, this.adquirentes);
-      this.items.set(newImovel.view,newImovel);
-      this.pager.addPage(newImovel.view);
-      const newEntry = this.pager.nav.items[this.pager.nav.last];
-      newEntry.delBtn.addAction(() => {
-        this.items.delete(newImovel.view);
-      });
-    });
+    this.pager.addBtn.setAction(() =>
+      this.add(new Imovel(this.alienantes, this.adquirentes)));
   }
   get view() { return this.pager; }
   get list() {
@@ -1711,6 +1713,14 @@ class ImovelList {
         validImoveis.push(this.items.get(imovelView));
     }
     return validImoveis;
+  }
+  add(newImovel) {
+    this.items.set(newImovel.view,newImovel);
+    this.pager.addPage(newImovel.view);
+    const newEntry = this.pager.nav.items[this.pager.nav.last];
+    newEntry.delBtn.addAction(() => {
+      this.items.delete(newImovel.view);
+    });
   }
 }
 
@@ -1786,17 +1796,21 @@ class DoiMaker {
       });
     });
     this.saveButton = new ControlButton("Salvar");
-    this.downloadButton = new ControlButton("Download");
     this.resumeButton = new ControlButton("Carregar");
+    this.downloadButton = new ControlButton("Download");
+    this.filePicker = new JsonFilePicker();
     this.uploadButton = new ControlButton("Upload");
     this.saveButton.setAction(() => this.save());
     this.downloadButton.setAction(() => this.download());
-//    this.resumeButton.setAction(() => this.resume());
-//    this.uploadButton.setAction(() => this.upload());
+    this.resumeButton.setAction(() => this.resume());
+    this.uploadButton.setAction(() => this.filePicker.trigger());
+    this.filePicker.setAction(async () => this.upload());
     this.btnLine = new Row();
     this.btnLine.add(this.saveButton);
     this.btnLine.add(this.resumeButton);
     this.btnLine.add(this.downloadButton);
+    this.btnLine.add(this.filePicker);
+    this.filePicker.hide();
     this.btnLine.add(this.uploadButton);
     this.container = new TitledBlock("DOImaker");
     this.container.add(this.pager);
@@ -1812,12 +1826,97 @@ class DoiMaker {
     return { "declaracoes": doiJson };
   }
 
+  load(doiList) {
+    const acts = {}; // Livro+Folha
+    const subjects = {}; // ni
+    doiList.forEach( (doi) => {
+      const actId = doi.numeroLivro+':'+doi.folha;
+      if (!acts[actId]) {
+        const newAct = new Ato();
+        for (const prop of Object.keys(newAct)) {
+          if (newAct[prop] instanceof DoiProp)
+            newAct[prop].setValue(doi[prop]);
+        }
+        doi.alienantes.forEach( (alienante) => {
+          const ni = alienante.ni;
+          if (!subjects[ni]) {
+            const newAlienante = new Alienante();
+            for (const prop of Object.keys(newAlienante)) {
+              if (newAlienante[prop] instanceof DoiProp)
+                newAlienante[prop].setValue(alienante[prop]);
+            }
+            if (alienante.representantes) {
+              for (const rep of alienante.representantes)
+                newAlienante.reps.add(rep.ni);
+            }
+            subjects[ni] = newAlienante;
+          }
+          newAct.alienantes.add(subjects[ni]);
+        });
+        doi.adquirentes.forEach( (adquirente) => {
+          const ni = adquirente.ni;
+          if (!subjects[ni]) {
+            const newAdquirente = new Adquirente();
+            for (const prop of Object.keys(newAdquirente)) {
+              if (newAdquirente[prop] instanceof DoiProp)
+                newAdquirente[prop].setValue(adquirente[prop]);
+            }
+            if (adquirente.representantes) {
+              for (const rep of adquirente.representantes)
+                newAdquirente.reps.add(rep.ni);
+            }
+            subjects[ni] = newAdquirente;
+          }
+          newAct.adquirentes.add(subjects[ni]);
+        });
+        acts[actId] = newAct;
+      }
+      const newImovel = new Imovel(acts[actId].alienantes,
+        acts[actId].adquirentes);
+      for (const prop of Object.keys(newImovel)) {
+        if (newImovel[prop] instanceof DoiProp) {
+          newImovel[prop].setValue(doi[prop]);
+        }
+      }
+      doi.alienantes.forEach( (alienante) => {
+        newImovel.alienacao.add(alienante.ni,
+          alienante.participacao);
+      });
+      doi.adquirentes.forEach( (adquirente) => {
+        newImovel.aquisicao.add(adquirente.ni,
+          adquirente.participacao);
+      });
+      acts[actId].imoveis.add(newImovel);
+    });
+    for (const act of Object.values(acts)) {
+      this.items.set(act.view,act);
+      this.pager.addPage(act.view);
+      const newEntry = this.entries[this.nav.last];
+      newEntry.delBtn.addAction(() => {
+        this.items.delete(act.view); 
+      });
+    }
+  }
+
   get json() { return JSON.stringify(this.object); }
   save() { saveObject(this.object,"draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
-  // TODO: resume and upload
-  // resume() { loadObject("draftDoi"); }
-//  upload() { this.load(readJson("doi.json").declaracoes); }
+  resume() { this.load(loadObject("draftDoi").declaracoes); }
+
+  async upload() { 
+    const file = this.filePicker.file;
+    if (!file) {
+      console.log("No file selected.");
+      return;
+    }
+    try {
+      const obj = await readJson(file);
+      if (obj && obj.declaracoes) this.load(obj.declaracoes);
+      else console.error("No DOI found.");
+    } catch (error) {
+      console.error("Couldn't read file:", error);
+    }
+  }
 
   init() {
     document.getElementById("app").appendChild(this.view.html);
