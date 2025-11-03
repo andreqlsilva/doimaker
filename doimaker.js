@@ -939,13 +939,13 @@ class FilePicker extends UIComponent {
   get file() {
     return this.html.files[0];
   }
+  trigger() { this.html.click(); }
 }
 
 class JsonFilePicker extends FilePicker {
   static className = "JsonFilePicker";
-  constructor(title) {
+  constructor() {
     super();
-    this.title = title ?? "Upload";
     this.html.accept = ".json";
   }
   setAction(actionFunction) {
@@ -1851,16 +1851,20 @@ class DoiMaker {
     this.saveButton = new ControlButton("Salvar");
     this.resumeButton = new ControlButton("Carregar");
     this.downloadButton = new ControlButton("Download");
-    this.filePicker = new JsonFilePicker("Upload");
+    this.filePicker = new JsonFilePicker();
+    this.uploadButton = new ControlButton("Upload");
     this.saveButton.setAction(() => this.save());
     this.downloadButton.setAction(() => this.download());
     this.resumeButton.setAction(() => this.resume());
+    this.uploadButton.setAction(() => this.filePicker.trigger());
     this.filePicker.setAction(async () => this.upload());
     this.btnLine = new Row();
     this.btnLine.add(this.saveButton);
     this.btnLine.add(this.resumeButton);
     this.btnLine.add(this.downloadButton);
     this.btnLine.add(this.filePicker);
+    this.filePicker.hide();
+    this.btnLine.add(this.uploadButton);
     this.container = new TitledBlock("DOImaker");
     this.container.add(this.pager);
     this.container.add(this.btnLine);
@@ -1951,11 +1955,29 @@ class DoiMaker {
   save() { saveObject(this.object,"draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
   resume() { this.load(loadObject("draftDoi").declaracoes); }
-  async upload() {
+
+  // My simple idea for an upload...
+  /*async upload() {
     const file = this.filePicker.file;
     const obj = await readJson(file);
     this.load(obj.declaracoes);
-  }
+  }*/
+
+  // ...and the AI-advised version
+  async upload() { 
+    const file = this.filePicker.file;
+    if (!file) {
+      console.log("No file selected.");
+      return;
+    }
+    try {
+      const obj = await readJson(file);
+      if (obj && obj.declaracoes) this.load(obj.declaracoes);
+      else console.error("No DOI found.");
+    } catch (error) {
+      console.error("Couldn't read file:", error);
+    }
+  }
 
   init() {
     document.getElementById("app").appendChild(this.view.html);
