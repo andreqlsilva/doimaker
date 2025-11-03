@@ -207,6 +207,43 @@ h3.HeaderElement {
   transform: translateY(1px);
 }
 
+/* --- JsonFilePicker Simple Styling --- */
+
+/* 1. This styles the "Choose File" button */
+.JsonFilePicker::file-selector-button {
+  /* Copy styles from .ControlButton */
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  
+  background-color: #007bff;
+  color: white;
+  
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  
+  /* Add some margin to separate it from the text */
+  margin-right: 15px;
+}
+
+.JsonFilePicker::file-selector-button:hover {
+  background-color: #0056b3;
+}
+
+/* 2. This cleans up the file input's default "input field" look */
+.JsonFilePicker {
+  /* Remove the default input styles */
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  width: auto; /* Let it size to its content */
+
+  /* Style the "No file chosen" text */
+  color: #555;
+}
+
 /* === COMPOSITE COMPONENTS === */
 
 /* Blocks with a distinct header bar */
