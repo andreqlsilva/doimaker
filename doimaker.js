@@ -759,7 +759,7 @@ class UIComponent { // extend only
   setId(id) { if (id) this.html.setAttribute("id",id); }
 }
 
-class DisplayElement extends UIComponent { // also extend only
+class DisplayElement extends UIComponent { // extend only
   static tag = "p";
   static className = "DisplayElement";
   constructor(title) {
@@ -792,7 +792,7 @@ class LabelElement extends TextualElement {
   static className = "LabelElement";
 }
 
-class HElement extends TextualElement { // extend-only
+class HElement extends TextualElement { // extend only
   static className = "HeaderElement";
 }
 
@@ -1417,22 +1417,7 @@ class RepList {
   constructor() {
     this.inputs = [];
     this.view = new EditableList("Representantes");
-    //TODO: simplify as below
-    //this.view.addBtn.setAction(() => this.add(''));
-    this.view.addBtn.setAction(() => {
-      const label = new LabelElement("CPF ou CNPJ: ");
-      const field = new TextInput("");
-      this.inputs.push(field);
-      const repLine = new Row();
-      repLine.add(label)
-      repLine.add(field)
-      const newRep = new ListEntry(repLine)
-      this.view.add(newRep);
-      newRep.delBtn.setAction (() => {
-        this.inputs.splice(this.view.indexOf(newRep),1);
-        this.view.removeItem(newRep);
-      });
-    });
+    this.view.addBtn.setAction(() => this.add(''));
   }
   get list() {
     const representantes = [];
@@ -1522,17 +1507,8 @@ class SubjectList {
       throw new Error("Invalid position.");
     this.pager = new Pager(title);
     this.items = new Map();
-    //TODO: simplify as below
-    //this.pager.addBtn.setAction(() => this.add(new Subject(this.position));
-    this.pager.addBtn.setAction(() => {
-      const newSubj = new Subject(this.position);
-      this.items.set(newSubj.view,newSubj);
-      this.pager.addPage(newSubj.view);
-      const newEntry = this.pager.nav.items[this.pager.nav.last];
-      newEntry.delBtn.addAction(() => {
-        this.items.delete(newSubj.view);
-      });
-    });
+    this.pager.addBtn.setAction(() =>
+      this.add(new Subject(this.position)));
   }
   get view() { return this.pager; }
   get list() {
@@ -1561,27 +1537,8 @@ class Operacao {
   constructor(title) {
     this.inputs = new Map();
     const validTitle = title==null ? "Operação" : title;
-    //this.subjectList = [];
     this.view = new EditableList(validTitle);
-    //TODO: simplify as below
-    //this.view.addBtn.setAction (() => this.add('',''));
-    this.view.addBtn.setAction(() => {
-      const label1 = new LabelElement("Participante: ");
-      const subject = new TextInput(); // TODO: create menu
-      // Menu items must be managed by parent
-      const label2 = new LabelElement("%: ");
-      const participation = new NumberInput(0);
-      this.inputs.set(subject, participation);
-      const line = new Row();
-      line.add(label1); line.add(subject);
-      line.add(label2); line.add(participation);
-      const newOp = new ListEntry(line);
-      this.view.add(newOp);
-      newOp.delBtn.setAction (() => {
-        this.inputs.delete(subject);
-        this.view.removeItem(newOp);
-      });
-    });
+    this.view.addBtn.setAction (() => this.add('',''));
   }
   get total() {
     let sum=0;
@@ -1746,18 +1703,8 @@ class ImovelList {
     this.items = new Map();
     this.alienantes = act.alienantes;
     this.adquirentes = act.adquirentes;
-    //TODO: simplify as below
-    //this.pager.addBtn.setAction(() => this.add(new Imovel(this.alienantes, this.adquirentes)));
-    this.pager.addBtn.setAction(() => {
-      const newImovel =
-        new Imovel(this.alienantes, this.adquirentes);
-      this.items.set(newImovel.view,newImovel);
-      this.pager.addPage(newImovel.view);
-      const newEntry = this.pager.nav.items[this.pager.nav.last];
-      newEntry.delBtn.addAction(() => {
-        this.items.delete(newImovel.view);
-      });
-    });
+    this.pager.addBtn.setAction(() =>
+      this.add(new Imovel(this.alienantes, this.adquirentes)));
   }
   get view() { return this.pager; }
   get list() {
@@ -1956,14 +1903,6 @@ class DoiMaker {
   download() { downloadObject(this.object,"doi.json"); }
   resume() { this.load(loadObject("draftDoi").declaracoes); }
 
-  // My simple idea for an upload...
-  /*async upload() {
-    const file = this.filePicker.file;
-    const obj = await readJson(file);
-    this.load(obj.declaracoes);
-  }*/
-
-  // ...and the AI-advised version
   async upload() { 
     const file = this.filePicker.file;
     if (!file) {
