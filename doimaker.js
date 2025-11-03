@@ -738,7 +738,6 @@ async function readJson(fileobj) {
   }
 }
 
-
 // FRONTEND LIBRARY 
 
 class UIComponent { // extend only
@@ -939,6 +938,19 @@ class FilePicker extends UIComponent {
   }
   get file() {
     return this.html.files[0];
+  }
+}
+
+class JsonFilePicker extends FilePicker {
+  static className = "JsonFilePicker";
+  constructor(title) {
+    super();
+    this.title = title ?? "Upload";
+    this.html.accept = ".json";
+  }
+  setAction(actionFunction) {
+    if (actionFunction instanceof Function) 
+      this.html.addEventListener("change", actionFunction);
   }
 }
 
@@ -1837,18 +1849,18 @@ class DoiMaker {
       });
     });
     this.saveButton = new ControlButton("Salvar");
-    this.downloadButton = new ControlButton("Download");
     this.resumeButton = new ControlButton("Carregar");
-    this.uploadButton = new ControlButton("Upload");
+    this.downloadButton = new ControlButton("Download");
+    this.filePicker = new JsonFilePicker("Upload");
     this.saveButton.setAction(() => this.save());
     this.downloadButton.setAction(() => this.download());
     this.resumeButton.setAction(() => this.resume());
-    this.uploadButton.setAction(() => this.upload());
+    this.filePicker.setAction(async () => this.upload());
     this.btnLine = new Row();
     this.btnLine.add(this.saveButton);
     this.btnLine.add(this.resumeButton);
     this.btnLine.add(this.downloadButton);
-    this.btnLine.add(this.uploadButton);
+    this.btnLine.add(this.filePicker);
     this.container = new TitledBlock("DOImaker");
     this.container.add(this.pager);
     this.container.add(this.btnLine);
@@ -1939,7 +1951,11 @@ class DoiMaker {
   save() { saveObject(this.object,"draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
   resume() { this.load(loadObject("draftDoi").declaracoes); }
-  upload() { this.load(readJson("doi.json").declaracoes); }
+  async upload() {
+    const file = this.filePicker.file;
+    const obj = await readJson(file);
+    this.load(obj.declaracoes);
+  }
 
   init() {
     document.getElementById("app").appendChild(this.view.html);
