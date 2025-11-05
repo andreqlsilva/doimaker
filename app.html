@@ -1,11 +1,10 @@
 <!doctype HTML>
 <html lang="pt-br">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
-    <title>DOI maker 1.0</title>
-    <style>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOI maker 1.0</title>
+<style>
 /* === GLOBAL STYLES === */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
@@ -490,12 +489,10 @@ body.dark-mode .Pager > .EditableList .ListEntry.picked {
 body.dark-mode .Pager > .EditableList .ListEntry.picked .TextualElement {
   color: #e6f7ff;
 }
-
-  </style>
-  </head>
-  <body id="app">
-  </body>
-  <script>
+</style>
+</head>
+<body id="app"></body>
+<script>
 // BEGIN SCHEMA
 const doiJson = `{
   "Ato": {
@@ -1687,7 +1684,7 @@ class CPF {
     if (!/^\d{11}$/.test(ni)) return false;
 
     // Reject CPFs with all digits the same (e.g. "11111111111")
-    if (/^(\d)\1{10}$/.test(ni)) return false;
+    if (/^(\d){10}$/.test(ni)) return false;
 
     const digits = ni.split("").map(d => parseInt(d, 10));
 
@@ -1719,7 +1716,7 @@ class CNPJ {
     if (!/^\d{14}$/.test(ni)) return false;
 
     // Reject CNPJs with all digits the same
-    if (/^(\d)\1{13}$/.test(ni)) return false;
+    if (/^(\d){13}$/.test(ni)) return false;
 
     const digits = ni.split("").map(d => parseInt(d, 10));
 
@@ -2442,5 +2439,5 @@ class DoiMaker {
 
 const doimaker = new DoiMaker();
 doimaker.init();
-  </script>
+</script>
 </html>
