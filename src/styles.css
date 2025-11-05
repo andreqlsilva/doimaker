@@ -370,3 +370,116 @@ h3.HeaderElement {
   color: #0056b3;
 }
 
+/* --- NEW: Reset Button Style --- */
+
+.ResetButton {
+  /* Use red "danger" color */
+  background-color: #dc3545;
+
+  /* This pushes the button (and any following buttons)
+     all the way to the right of the title bar */
+  margin-left: auto;
+}
+
+.ResetButton:hover {
+  background-color: #c82333; /* Darker red */
+}
+
+
+/* --- NEW: Color Switcher Button Style --- */
+
+.ColorButton {
+  /* Give it a neutral gray */
+  background-color: #6c757d;
+  min-width: 40px; /* Make it squarish */
+}
+
+.ColorButton:hover {
+  background-color: #5a6268;
+}
+
+/* === DARK MODE STYLES === */
+
+/* Default background and text */
+body.dark-mode {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+/* Blocks */
+body.dark-mode .Block {
+  background-color: #1e1e1e;
+  border-color: #444;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Headers */
+body.dark-mode .HeaderElement { color: #f1f1f1; }
+body.dark-mode h1.HeaderElement { border-bottom-color: #333; }
+body.dark-mode h3.HeaderElement { color: #e0e0e0; }
+
+/* Inputs (Text, Number, Date, Menu) */
+body.dark-mode .InputElement, 
+body.dark-mode .TextInput, 
+body.dark-mode .NumberInput, 
+body.dark-mode .DateInput,
+body.dark-mode .MenuInput, 
+body.dark-mode .FilePicker {
+  background-color: #4a4a4a;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+/* Input Focus */
+body.dark-mode .InputElement:focus, 
+body.dark-mode .TextInput:focus, 
+body.dark-mode .NumberInput:focus, 
+body.dark-mode .DateInput:focus,
+body.dark-mode .MenuInput:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.4);
+}
+
+/* Title Bars */
+body.dark-mode .BlockTitle {
+  background-color: #2a2a2a;
+  border-bottom-color: #444;
+}
+
+/* Main App Title Bar */
+body.dark-mode .DoiMaker > .BlockTitle {
+  background-color: #000000;
+}
+
+/* Editable Lists */
+body.dark-mode .EditableList {
+  background-color: #252525;
+}
+
+/* List Entries */
+body.dark-mode .ListEntry {
+  background-color: #2c2c2c;
+  border-color: #3a3a3a;
+}
+
+/* Pager Navigation */
+body.dark-mode .Pager > .EditableList:first-child {
+  background-color: #222;
+}
+
+/* Pager Content Pane */
+body.dark-mode .Pager > .Block:last-child {
+  background-color: #1e1e1e; /* Same as .Block */
+  border-left-color: #444;
+}
+
+/* Selected Pager Nav Item */
+body.dark-mode .Pager > .EditableList .ListEntry.picked {
+  background-color: #004a7c;
+  border-color: #007bff;
+}
+
+body.dark-mode .Pager > .EditableList .ListEntry.picked .TextualElement {
+  color: #e6f7ff;
+}
+

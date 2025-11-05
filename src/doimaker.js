@@ -595,10 +595,6 @@ const doiJson = `{
       "type": "boolean",
       "description": "Informar se houve permuta de bens na operação imobiliária"
     },
-    "indicadorAlienacaoFiduciaria": {
-      "type": "boolean",
-      "description": "Informar se o imóvel foi objeto de alienação fiduciária na operação"
-    },
     "tipoParteTransacionada": {
       "description": "Selecionar se a informação da parte transacionada do  imóvel será em percentual ou área",
       "info": "TipoParteTransacionada",
@@ -660,6 +656,10 @@ const doiJson = `{
           "title": "Não de aplica"
         }
       ]
+    },
+    "indicadorAlienacaoFiduciaria": {
+      "type": "boolean",
+      "description": "Informar se o imóvel foi objeto de alienação fiduciária na operação"
     },
     "valorPagoAteDataAto": {
       "type": "number",
@@ -757,6 +757,9 @@ class UIComponent { // extend only
     //TODO
   }
   setId(id) { if (id) this.html.setAttribute("id",id); }
+  addClass(className) {
+    if (className) this.html.classList.add(className);
+  }
 }
 
 class DisplayElement extends UIComponent { // extend only
@@ -1173,6 +1176,9 @@ class Pager extends DualPane {
     this.nav.select(this.nav.items.indexOf(entry));
     this.pages.get(entry).show();
     this.current = entry;
+  }
+  empty() {
+    while (this.current !== null) this.removePage(this.firstEntry);
   }
 }
 
@@ -1813,6 +1819,14 @@ class DoiMaker {
     this.filePicker.hide();
     this.btnLine.add(this.uploadButton);
     this.container = new TitledBlock("DOImaker");
+    this.resetButton = new ControlButton("Reset");
+    this.resetButton.addClass("ResetButton");
+    this.colorButton = new ControlButton("🌗");
+    this.colorButton.addClass("ColorButton");
+    this.resetButton.setAction(() => this.empty());
+    this.colorButton.setAction(() => this.switchColor());
+    this.container.titleLine.add(this.resetButton);
+    this.container.titleLine.add(this.colorButton);
     this.container.add(this.pager);
     this.container.add(this.btnLine);
   }
@@ -1902,7 +1916,6 @@ class DoiMaker {
   save() { saveObject(this.object,"draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
   resume() { this.load(loadObject("draftDoi").declaracoes); }
-
   async upload() { 
     const file = this.filePicker.file;
     if (!file) {
@@ -1917,6 +1930,10 @@ class DoiMaker {
       console.error("Couldn't read file:", error);
     }
   }
+
+  empty() { this.pager.empty(); }
+
+  switchColor() { document.body.classList.toggle("dark-mode"); }
 
   init() {
     document.getElementById("app").appendChild(this.view.html);
