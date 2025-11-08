@@ -161,6 +161,14 @@ h3.HeaderElement {
 .Row > .InputElement, .Row > .TextInput, .Row > .NumberInput, .Row > .DateInput,
 .Row > .MenuInput {
   width: 200px; /* Give a default width */
+  margin-right: 10px;
+}
+
+/* Add spacing for other items in a Row */
+.Row > .ControlButton,
+.Row > .TextualElement,
+.Row > .Row { /* This targets nested Rows */
+  margin-right: 10px; 
 }
 
 /* NEW: Fixes labels inside a Row (like RepList, Operacao) */
@@ -168,6 +176,7 @@ h3.HeaderElement {
 .Row > .LabelElement {
   display: inline;
   margin-bottom: 0;
+  margin-right: 10px;
 }
 
 /* For NumberInputs in forms (65% of 100%) */

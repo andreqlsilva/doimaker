@@ -1669,9 +1669,10 @@ class Imovel extends DoiEntity {
   }
 
   render() {
-    const container = super.render();
+    const container = new TitledBlock("Operação imobiliária");
     container.add(this.alienacao.view);
     container.add(this.aquisicao.view);
+    container.add(super.render());
     // TODO: manage subject menu in each operacao
     /* 
     this.aquisicao.view.addButton.addAction( () => {
