@@ -12,5 +12,8 @@ printf '<!doctype HTML>
 <body id="app"></body>
 <script>
 %b
+%b
+%b
+%b
 </script>
-</html>' "$(cat src/styles.css)" "$(cat src/doimaker.js)" > doimaker-app.html
+</html>' "$(cat src/styles.css)" "$(cat src/storage.js)" "$(cat src/ui.js)" "$(cat src/doischema.js)" "$(cat src/doimaker.js)" > doimaker-app.html
