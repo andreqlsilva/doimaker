@@ -449,11 +449,15 @@ class Imovel extends DoiEntity {
       const subj = this.subjects.find(s => s.ni.value === ni);
       if (subj != null) {
         const part = { "ni": ni, participacao: op[ni] }
+        // business rules for subjects
         for (const prop of Object.keys(subj)) {
           if (subj[prop] instanceof DoiProp) {
             if (subj[prop].value != 0
               || subj.requiredList.includes(prop))
               part[prop] = subj[prop].value;
+          }
+          if (part.ni.length === 14) {
+            delete part.indicadorConjuge;
           }
           if (part.indicadorConjuge) {
             if (!part.indicadorCpfConjugeIdentificado)
@@ -735,20 +739,24 @@ class DoiMaker {
   save() { saveObject(this.object,"draftDoi"); }
   download() { downloadObject(this.object,"doi.json"); }
   resume() { this.load(loadObject("draftDoi").declaracoes); }
-  async upload() { 
-        const file = this.filePicker.file;
-        if (!file) {
-            console.log("No file selected.");
-            return;
-          }
-        try {
-            const obj = await readJson(file);
-      if (obj && obj.declaracoes) this.load(obj.declaracoes);
-        else console.error("No DOI found.");
-          } catch (error) {
-            console.error("Couldn't read file:", error);
-          }
-      }
+  async upload() {
+    const file = this.filePicker.file;
+    if (!file) {
+      console.log("No file selected.");
+      return;
+    }
+    try {
+      const obj = await readJson(file);
+      if (obj && obj.declaracoes) {
+        this.load(obj.declaracoes);
+      }
+      else {
+        console.error("No DOI found.");
+      }
+    } catch (error) {
+      console.error("Couldn't read file:", error);
+    }
+  }
 
   empty() {
     this.pager.empty();
