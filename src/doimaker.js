@@ -1178,7 +1178,14 @@ class Pager extends DualPane {
     this.current = entry;
   }
   empty() {
-    while (this.current !== null) this.removePage(this.firstEntry);
+//  while (this.current !== null) this.removePage(this.firstEntry);
+    const allEntries = [...this.pages.keys()];
+    allEntries.forEach(entry => {
+      this.pane.removeItem(this.pages.get(entry));
+      this.nav.removeItem(entry);
+      this.pages.delete(entry);
+    });
+    this.current = null;
   }
 }
 
@@ -1669,10 +1676,10 @@ class Imovel extends DoiEntity {
   }
 
   render() {
-    const container = new TitledBlock("Operação imobiliária");
+//    const container = new TitledBlock("Operação imobiliária");
+    const container = super.render();
     container.add(this.alienacao.view);
     container.add(this.aquisicao.view);
-    container.add(super.render());
     // TODO: manage subject menu in each operacao
     /* 
     this.aquisicao.view.addButton.addAction( () => {
@@ -1842,8 +1849,8 @@ class DoiMaker {
   }
 
   load(doiList) {
+    this.empty();
     const acts = {}; // Livro+Folha
-    const subjects = {}; // ni
     doiList.forEach( (doi) => {
       const actId = doi.numeroLivro+':'+doi.folha;
       if (!acts[actId]) {
@@ -1852,40 +1859,42 @@ class DoiMaker {
           if (newAct[prop] instanceof DoiProp)
             newAct[prop].setValue(doi[prop]);
         }
-        doi.alienantes.forEach( (alienante) => {
-          const ni = alienante.ni;
-          if (!subjects[ni]) {
-            const newAlienante = new Alienante();
-            for (const prop of Object.keys(newAlienante)) {
-              if (newAlienante[prop] instanceof DoiProp)
-                newAlienante[prop].setValue(alienante[prop]);
-            }
-            if (alienante.representantes) {
-              for (const rep of alienante.representantes)
-                newAlienante.reps.add(rep.ni);
-            }
-            subjects[ni] = newAlienante;
-          }
-          newAct.alienantes.add(subjects[ni]);
-        });
-        doi.adquirentes.forEach( (adquirente) => {
-          const ni = adquirente.ni;
-          if (!subjects[ni]) {
-            const newAdquirente = new Adquirente();
-            for (const prop of Object.keys(newAdquirente)) {
-              if (newAdquirente[prop] instanceof DoiProp)
-                newAdquirente[prop].setValue(adquirente[prop]);
-            }
-            if (adquirente.representantes) {
-              for (const rep of adquirente.representantes)
-                newAdquirente.reps.add(rep.ni);
-            }
-            subjects[ni] = newAdquirente;
-          }
-          newAct.adquirentes.add(subjects[ni]);
-        });
+        newAct._subjectCache = {};
         acts[actId] = newAct;
       }
+      const subjects = acts[actId]._subjectCache;
+      doi.alienantes.forEach( (alienante) => {
+        const ni = alienante.ni;
+        if (!subjects[ni]) {
+          const newAlienante = new Alienante();
+          for (const prop of Object.keys(newAlienante)) {
+            if (newAlienante[prop] instanceof DoiProp)
+              newAlienante[prop].setValue(alienante[prop]);
+          }
+          if (alienante.representantes) {
+            for (const rep of alienante.representantes)
+            newAlienante.reps.add(rep.ni);
+          }
+          subjects[ni] = newAlienante;
+          acts[actId].alienantes.add(newAlienante);
+        }
+      });
+      doi.adquirentes.forEach( (adquirente) => {
+        const ni = adquirente.ni;
+        if (!subjects[ni]) {
+          const newAdquirente = new Adquirente();
+          for (const prop of Object.keys(newAdquirente)) {
+            if (newAdquirente[prop] instanceof DoiProp)
+              newAdquirente[prop].setValue(adquirente[prop]);
+          }
+          if (adquirente.representantes) {
+            for (const rep of adquirente.representantes)
+            newAdquirente.reps.add(rep.ni);
+          }
+          subjects[ni] = newAdquirente;
+          acts[actId].adquirentes.add(newAdquirente);
+        }
+      });
       const newImovel = new Imovel(acts[actId].alienantes,
         acts[actId].adquirentes);
       for (const prop of Object.keys(newImovel)) {
@@ -1918,21 +1927,24 @@ class DoiMaker {
   download() { downloadObject(this.object,"doi.json"); }
   resume() { this.load(loadObject("draftDoi").declaracoes); }
   async upload() { 
-    const file = this.filePicker.file;
-    if (!file) {
-      console.log("No file selected.");
-      return;
-    }
-    try {
-      const obj = await readJson(file);
+        const file = this.filePicker.file;
+        if (!file) {
+            console.log("No file selected.");
+            return;
+          }
+        try {
+            const obj = await readJson(file);
       if (obj && obj.declaracoes) this.load(obj.declaracoes);
-      else console.error("No DOI found.");
-    } catch (error) {
-      console.error("Couldn't read file:", error);
-    }
-  }
+        else console.error("No DOI found.");
+          } catch (error) {
+            console.error("Couldn't read file:", error);
+          }
+      }
 
-  empty() { this.pager.empty(); }
+  empty() {
+    this.pager.empty();
+    this.items = new Map();
+  }
 
   switchColor() { document.body.classList.toggle("dark-mode"); }
 
