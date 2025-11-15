@@ -273,11 +273,6 @@ const doiJson = `{
     }
   },
   "Imovel": {
-    "codigoIbge": {
-      "type": "string",
-      "description": "Informar o código IBGE do município onde se localiza o imóvel",
-      "maxLength": 7
-    },
     "destinacao": {
       "info": "Destinacao",
       "type": "string",
