@@ -13,6 +13,17 @@ class UIComponent { // extend only
   toggle() { this.html.hidden = !this.html.hidden; }
   pick() { this.html.classList.add("picked"); }
   unpick() { this.html.classList.remove("picked"); }
+  fire(eventName, eventData) {
+    const newEvent = new CustomEvent(eventName, {
+      detail: eventData,
+      bubbles: true,
+      composed: true
+    });
+    this.html.dispatchEvent(newEvent);
+  }
+  react(eventName, actionFunction) {
+    this.html.addEventListener(eventName, actionFunction);
+  }
   showOn(condition) {
     //TODO
   }
@@ -184,11 +195,21 @@ class MenuInput extends UIComponent {
     }
     else throw new Error("Invalid new option.");
   }
+  update(code, newTitle) {
+    if (this.options[code] == null)
+      throw new Error("Option does not exist.");
+    this.options[code].textContent = newTitle;
+  }
   remove(code) {
     if (this.options[code] == null)
       throw new Error("Option does not exist.");
     this.html.removeChild(this.options[code]);
     delete this.options[code];
+  }
+  reset() {
+    Object.keys(this.options).forEach((code) =>{
+      if (code !== "") this.remove(code);
+    });
   }
 }
 

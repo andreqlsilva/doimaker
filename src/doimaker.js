@@ -329,8 +329,12 @@ class SubjectList {
       throw new Error("Invalid position.");
     this.pager = new Pager(title);
     this.items = new Map();
-    this.pager.addBtn.setAction(() =>
-      this.add(new Subject(this.position)));
+    this.menu = new MenuInput();
+    this.menuEntries = new Map();
+    this.menuCounter = 0;
+    this.pager.addBtn.setAction(() => {
+      this.add(new Subject(this.position));
+    });
   }
   get view() { return this.pager; }
   get list() {
@@ -343,10 +347,21 @@ class SubjectList {
   }
   add(newSubj) {
     this.items.set(newSubj.view,newSubj);
+    const currentNi = newSubj.ni.value || '';
+    this.menu.add(this.menuCounter, currentNi);
+    this.menuEntries.set(newSubj,this.menuCounter++);
+    newSubj.ni.view.field.html.addEventListener("change", () => {
+      this.menu.update(
+        this.menuEntries.get(newSubj),
+        newSubj.ni.value
+      );
+    });
     this.pager.addPage(newSubj.view);
     const newEntry = this.pager.nav.items[this.pager.nav.last];
     newEntry.delBtn.addAction(() => {
       this.items.delete(newSubj.view);
+      this.menu.remove(this.menuEntries.get(newSubj));
+      this.menuEntries.delete(newSubj);
     });
   }
   getSubjectByNi(ni) {
@@ -354,8 +369,8 @@ class SubjectList {
       if (subject.ni.value === ni) return subject;
   }
 }
-
-class Operacao {
+/*
+class TextualOperacao {
   constructor(title) {
     this.inputs = new Map();
     const validTitle = title==null ? "Operação" : title;
@@ -407,9 +422,84 @@ class Operacao {
     return (this.total>=98 && this.total <=100);
   }
 }
+*/
 
 class MunicipioList {
   //TODO (last)
+}
+
+class Operacao {
+  constructor(title,subjList) {
+    this.inputs = new Map();
+    this.menu = subjList.menu;
+    const validTitle = title==null ? "Operação" : title;
+    this.view = new EditableList(validTitle);
+    this.view.addBtn.setAction (() => this.add());
+  }
+  get total() {
+    let sum=0;
+    for (const [subject, participation] of this.inputs.entries()) {
+      sum+=Number(participation.value);
+    }
+    return sum;
+  }
+  get list() {
+    const operacao = {};
+    for (const subject of this.inputs.keys()) {
+      const selectedId = subject.value;
+      const selectedOption = subject.options[selectedId];
+      if (!selectedId || !selectedOption) continue;
+      const choice = selectedOption.textContent;
+      const fraction = Number(this.inputs.get(subject).value);
+      if (this.validate(choice,fraction))
+        operacao[choice] = fraction;
+    }
+    return operacao;
+  }
+  add(loadedNi,loadedFraction) {
+    const label1 = new LabelElement("Participante: ");
+    const subject = new MenuInput();
+    const populate = () => {
+      subject.reset();
+      Object.values(this.menu.options).forEach((option) => {
+        subject.add(option.value, option.textContent);
+      });
+    }
+    subject.html.addEventListener("click", () => {
+      const previous = subject.value;
+      populate();
+      if (previous) subject.value = previous;
+    });
+    const label2 = new LabelElement("%: ");
+    const participation = new NumberInput(loadedFraction);
+    if (loadedNi) {
+      populate();
+      const matchingOption = Object.values(subject.options).find(
+        opt => opt.textContent === loadedNi
+      );
+      if (matchingOption) subject.value = matchingOption.value;
+    }
+    this.inputs.set(subject, participation);
+    const line = new Row();
+    line.add(label1); line.add(subject);
+    line.add(label2); line.add(participation);
+    const newOp = new ListEntry(line);
+    this.view.add(newOp);
+    newOp.delBtn.setAction (() => {
+      this.inputs.delete(subject);
+      this.view.removeItem(newOp);
+    });
+  }
+  validate(ni,fraction) {
+    if (Subject.validate(ni)
+        && typeof fraction === "number"
+        && fraction>0 && fraction<=100)
+      return true;
+    else return false;
+  }
+  isValid() {
+    return (this.total>=98 && this.total <=100);
+  }
 }
 
 class Imovel extends DoiEntity {
@@ -428,9 +518,9 @@ class Imovel extends DoiEntity {
     ]);
     this.alienantes = alienantes;
     this.adquirentes = adquirentes;
-    this.alienacao = new Operacao("Alienação");
+    this.alienacao = new Operacao("Alienação",this.alienantes);
     // implement menu of alienantes here!
-    this.aquisicao = new Operacao("Aquisição");
+    this.aquisicao = new Operacao("Aquisição",this.adquirentes);
     // implement menu of adquirentes here!
     this.outrosMunicipios = new MunicipioList();
     this.view = this.render();
@@ -449,24 +539,24 @@ class Imovel extends DoiEntity {
       const subj = this.subjects.find(s => s.ni.value === ni);
       if (subj != null) {
         const part = { "ni": ni, participacao: op[ni] }
-        // business rules for subjects
         for (const prop of Object.keys(subj)) {
           if (subj[prop] instanceof DoiProp) {
             if (subj[prop].value != 0
               || subj.requiredList.includes(prop))
               part[prop] = subj[prop].value;
           }
-          if (part.ni.length === 14) {
-            delete part.indicadorConjuge;
-          }
-          if (part.indicadorConjuge) {
-            if (!part.indicadorCpfConjugeIdentificado)
-              part.indicadorCpfConjugeIdentificado = false;
-            part.indicadorConjugeParticipa = false;
-          }
-          if (part.indicadorRepresentante) {
-            part.representantes = subj.representantes;
-          }
+        }
+        // business rules for subjects
+        if (part.ni.length === 14) {
+          delete part.indicadorConjuge;
+        }
+        if (part.indicadorConjuge) {
+          if (!part.indicadorCpfConjugeIdentificado)
+            part.indicadorCpfConjugeIdentificado = false;
+          part.indicadorConjugeParticipa = false;
+        }
+        if (part.indicadorRepresentante) {
+          part.representantes = subj.representantes;
         }
         parts.push(part);
       }
@@ -489,7 +579,7 @@ class Imovel extends DoiEntity {
   }
 
   render() {
-//    const container = new TitledBlock("Operação imobiliária");
+    //    const container = new TitledBlock("Operação imobiliária");
     const container = super.render();
     container.add(this.alienacao.view);
     container.add(this.aquisicao.view);
@@ -505,7 +595,7 @@ class Imovel extends DoiEntity {
     return container;
   }
 
-/*
+  /*
   addMunicipio(codigoIbge) {
     if (typeof codigoIbge === "string"
       && /^\d{7}$/.test(codigoIbge))
@@ -537,7 +627,7 @@ class ImovelList {
   get list() {
     const validImoveis = [];
     for (const imovelView of this.pager.pages.values()) {
-        validImoveis.push(this.items.get(imovelView));
+      validImoveis.push(this.items.get(imovelView));
     }
     return validImoveis;
   }
