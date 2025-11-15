@@ -193,7 +193,7 @@ class DoiEntity {
 
   render() { // assign to this.view (in subclasses only)
     const container = new Block();
-    container.add(new H3Element(this.schemaName))
+    //container.add(new H3Element(this.schemaName))
     for (const propName of Object.keys(this)) {
       if (this[propName] instanceof DoiProp) {
         container.add(this[propName].view);
@@ -534,11 +534,11 @@ class Imovel extends DoiEntity {
   }
 
   render() {
-    //    const container = new TitledBlock("Operação imobiliária");
-    const container = super.render();
-    container.add(this.codigoIbge.view);
+    const container = new TitledBlock("Operação imobiliária");
     container.add(this.alienacao.view);
     container.add(this.aquisicao.view);
+    container.add(this.codigoIbge.view);
+    container.add(super.render());
     //TODO: add outrosMunicipios
     return container;
   }
