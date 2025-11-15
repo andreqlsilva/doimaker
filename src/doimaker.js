@@ -193,7 +193,7 @@ class DoiEntity {
 
   render() { // assign to this.view (in subclasses only)
     const container = new Block();
-    container.add(new H3Element(this.schemaName))
+    //container.add(new H3Element(this.schemaName))
     for (const propName of Object.keys(this)) {
       if (this[propName] instanceof DoiProp) {
         container.add(this[propName].view);
@@ -370,10 +370,6 @@ class SubjectList {
   }
 }
 
-class MunicipioList {
-  //TODO (last)
-}
-
 class Operacao {
   constructor(title,subjList) {
     this.inputs = new Map();
@@ -448,6 +444,20 @@ class Operacao {
   }
 }
 
+class MunicipioList {
+  constructor() {
+    const label = new LabelElement("Município: ");
+    const field = new MenuInput();
+    for (const codigo of Object.keys(municipiosIbge)) {
+      field.add(codigo.substring(1),
+        municipiosIbge[codigo][0]+'/'+municipiosIbge[codigo][1]);
+    }
+    this.view = new InputBlock(label,field);
+  }
+  get value() { return this.view.value; }
+  set value(newCode) { this.view.value = newCode; }
+}
+
 class Imovel extends DoiEntity {
   static entity = "Imovel";
   constructor(alienantes, adquirentes) {
@@ -462,13 +472,12 @@ class Imovel extends DoiEntity {
       "tipoServico",
       "valorParteTransacionada"
     ]);
+    this.codigoIbge = new MunicipioList();
     this.alienantes = alienantes;
     this.adquirentes = adquirentes;
     this.alienacao = new Operacao("Alienação",this.alienantes);
-    // implement menu of alienantes here!
     this.aquisicao = new Operacao("Aquisição",this.adquirentes);
-    // implement menu of adquirentes here!
-    this.outrosMunicipios = new MunicipioList();
+    // this.outrosMunicipios = new MunicipioList();
     this.view = this.render();
   }
 
@@ -497,9 +506,10 @@ class Imovel extends DoiEntity {
           delete part.indicadorConjuge;
         }
         if (part.indicadorConjuge) {
-          if (!part.indicadorCpfConjugeIdentificado)
+          if (!part.indicadorCpfConjugeIdentificado) 
             part.indicadorCpfConjugeIdentificado = false;
-          part.indicadorConjugeParticipa = false;
+          if (!part.indicadorConjugeParticipa)
+              part.indicadorConjugeParticipa = false;
         }
         if (part.indicadorRepresentante) {
           part.representantes = subj.representantes;
@@ -511,7 +521,7 @@ class Imovel extends DoiEntity {
   }
 
   get doi() {
-    const doi = {};
+    const doi = { "codigoIbge": this.codigoIbge.value };
     for (const propName of Object.keys(doiDefs[this.schemaName])) {
       if (this[propName].value!= 0
         || this.requiredList.includes(propName))
@@ -525,10 +535,11 @@ class Imovel extends DoiEntity {
   }
 
   render() {
-    //    const container = new TitledBlock("Operação imobiliária");
-    const container = super.render();
+    const container = new TitledBlock("Operação imobiliária");
     container.add(this.alienacao.view);
     container.add(this.aquisicao.view);
+    container.add(this.codigoIbge.view);
+    container.add(super.render());
     //TODO: add outrosMunicipios
     return container;
   }
@@ -628,10 +639,6 @@ class Ato extends DoiEntity {
   // TODO
   isConsistent() { return true; }
 }
-
-// GLOBAL AND ENVIRONMENT VARIABLES
-
-const doiDefs=JSON.parse(doiJson);
 
 // CONTROLLER
 
@@ -738,6 +745,7 @@ class DoiMaker {
       });
       const newImovel = new Imovel(acts[actId].alienantes,
         acts[actId].adquirentes);
+      newImovel.codigoIbge.value = doi.codigoIbge;
       for (const prop of Object.keys(newImovel)) {
         if (newImovel[prop] instanceof DoiProp) {
           newImovel[prop].setValue(doi[prop]);

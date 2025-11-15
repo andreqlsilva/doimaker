@@ -134,7 +134,6 @@ class NumberInput extends InputElement {
   set value(newValue) {
     if (this.constructor.isValid(newValue))
       this.html.value = newValue;
-    else throw new Error("Invalid value.");
   }
 }
 
