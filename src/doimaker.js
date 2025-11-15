@@ -369,60 +369,6 @@ class SubjectList {
       if (subject.ni.value === ni) return subject;
   }
 }
-/*
-class TextualOperacao {
-  constructor(title) {
-    this.inputs = new Map();
-    const validTitle = title==null ? "Operação" : title;
-    this.view = new EditableList(validTitle);
-    this.view.addBtn.setAction (() => this.add('',''));
-  }
-  get total() {
-    let sum=0;
-    for (const [subject, participation] of this.inputs.entries()) {
-      sum+=Number(participation.value);
-    }
-    return sum;
-  }
-  get list() {
-    const operacao = {};
-    for (const subject of this.inputs.keys()) {
-      const choice = subject.value;
-      const fraction = Number(this.inputs.get(subject).value);
-      if (this.validate(choice,fraction))
-        operacao[choice] = fraction;
-    }
-    return operacao;
-  }
-  add(ni,participacao) {
-    const label1 = new LabelElement("Participante: ");
-    const subject = new TextInput(ni); // TODO: create menu
-    // Menu items must be managed by parent
-    const label2 = new LabelElement("%: ");
-    const participation = new NumberInput(participacao);
-    this.inputs.set(subject, participation);
-    const line = new Row();
-    line.add(label1); line.add(subject);
-    line.add(label2); line.add(participation);
-    const newOp = new ListEntry(line);
-    this.view.add(newOp);
-    newOp.delBtn.setAction (() => {
-      this.inputs.delete(subject);
-      this.view.removeItem(newOp);
-    });
-  }
-  validate(ni,fraction) {
-    if (Subject.validate(ni)
-        && typeof fraction === "number"
-        && fraction>0 && fraction<=100)
-      return true;
-    else return false;
-  }
-  isValid() {
-    return (this.total>=98 && this.total <=100);
-  }
-}
-*/
 
 class MunicipioList {
   //TODO (last)
@@ -583,14 +529,6 @@ class Imovel extends DoiEntity {
     const container = super.render();
     container.add(this.alienacao.view);
     container.add(this.aquisicao.view);
-    // TODO: manage subject menu in each operacao
-    /* 
-    this.aquisicao.view.addButton.addAction( () => {
-    });
-    this.alienacao.view.addButton.addAction( () => {
-
-    });
-    */
     //TODO: add outrosMunicipios
     return container;
   }
