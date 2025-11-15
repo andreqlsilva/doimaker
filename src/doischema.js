@@ -1,5 +1,5 @@
 // BEGIN SCHEMA
-const doiJson = `{
+const doiDefs = {
   "Ato": {
     "tipoDeclaracao": {
       "info" : "TipoDeclaracao",
@@ -689,5 +689,4 @@ const doiJson = `{
       "maxLength": 11
     }
   }
-}`;
-
+};

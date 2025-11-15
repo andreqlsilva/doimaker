@@ -506,9 +506,10 @@ class Imovel extends DoiEntity {
           delete part.indicadorConjuge;
         }
         if (part.indicadorConjuge) {
-          if (!part.indicadorCpfConjugeIdentificado)
+          if (!part.indicadorCpfConjugeIdentificado) 
             part.indicadorCpfConjugeIdentificado = false;
-          part.indicadorConjugeParticipa = false;
+          if (!part.indicadorConjugeParticipa)
+              part.indicadorConjugeParticipa = false;
         }
         if (part.indicadorRepresentante) {
           part.representantes = subj.representantes;
@@ -638,10 +639,6 @@ class Ato extends DoiEntity {
   // TODO
   isConsistent() { return true; }
 }
-
-// GLOBAL AND ENVIRONMENT VARIABLES
-
-const doiDefs=JSON.parse(doiJson);
 
 // CONTROLLER
 
